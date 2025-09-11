@@ -234,6 +234,33 @@
             transform: translateX(5px);
         }
 
+        .clickable-question {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .clickable-question:hover {
+            background: rgba(102, 126, 234, 0.2) !important;
+            border-left-color: var(--accent);
+            border-left-width: 4px;
+        }
+
+        .click-hint {
+            opacity: 0;
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-top: 0.5rem;
+            transition: opacity 0.3s ease;
+        }
+
+        .clickable-question:hover .click-hint {
+            opacity: 1;
+        }
+
+        .question-text {
+            margin-bottom: 0.5rem;
+        }
+
         .prediction-number {
             display: inline-block;
             background: var(--accent);
@@ -334,12 +361,15 @@
                         <strong>GodMode AI:</strong>
                     </div>
                     <div>
-                        Welcome to the future of conversation intelligence! Ask me any question and I'll predict:
+                        Welcome to <strong>Predictive Conversation Intelligence</strong>! This isn't a typical chat - it's a conversation tree explorer.
                         <br><br>
-                        🔮 The next 30 questions in your conversation
-                        <br>🌳 Alternative conversation branches you could explore
+                        Ask any question and I'll show you:
+                        <br>🔮 The next 30 questions in your conversation
+                        <br>🌳 Alternative conversation branches you could explore  
                         <br>🏛️ The 10 questions that naturally led to your current thought
                         <br>🤖 The optimal reasoning approach with detailed explanations
+                        <br><br>
+                        <strong>💡 Key Feature:</strong> Click on any predicted question to start a new conversation from that point!
                         <br><br>
                         What fascinates you today?
                     </div>
@@ -596,9 +626,10 @@
                 let html = '<div class="prediction-grid">';
                 questions.slice(0, 12).forEach((question, index) => {
                     html += `
-                        <div class="prediction-item">
+                        <div class="prediction-item clickable-question" data-question="${question.replace(/"/g, '&quot;')}" onclick="startNewConversation('${question.replace(/"/g, '&quot;')}')">
                             <span class="prediction-number">${index + 1}</span>
-                            ${question}
+                            <div class="question-text">${question}</div>
+                            <div class="click-hint"><i class="fas fa-arrow-right"></i> Click to explore this path</div>
                         </div>
                     `;
                 });
@@ -644,9 +675,10 @@
                 let html = '<div class="prediction-grid">';
                 questions.slice(0, 10).forEach((question, index) => {
                     html += `
-                        <div class="prediction-item">
+                        <div class="prediction-item clickable-question" data-question="${question.replace(/"/g, '&quot;')}" onclick="startNewConversation('${question.replace(/"/g, '&quot;')}')">
                             <span class="prediction-number">${index + 1}</span>
-                            ${question}
+                            <div class="question-text">${question}</div>
+                            <div class="click-hint"><i class="fas fa-arrow-left"></i> Click to explore this origin</div>
                         </div>
                     `;
                 });
@@ -659,12 +691,68 @@
             }
         }
 
+        function startNewConversation(question) {
+            // Clear current predictions
+            document.getElementById('future-questions-panel').style.display = 'none';
+            document.getElementById('branches-panel').style.display = 'none';
+            document.getElementById('origins-panel').style.display = 'none';
+            document.getElementById('reasoning-display').style.display = 'none';
+
+            // Add the selected question as user input
+            addMessage('user', question);
+
+            // Start prediction for this new question
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                isProcessing = true;
+                sendButton.disabled = true;
+                sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                const payload = {
+                    type: 'predict',
+                    question: question,
+                    context: []
+                };
+
+                websocket.send(JSON.stringify(payload));
+            }
+        }
+
         // Initialize WebSocket connection
         connectWebSocket();
 
-        // Add some initial suggestions
+        // Add some initial suggestions with clickable examples
         setTimeout(() => {
-            addMessage('bot', '💡 Try asking: "How does quantum computing work?" or "What are the implications of artificial general intelligence?" or "How do black holes form?"');
+            addMessage('bot', '💡 Try these examples (click to explore):');
+            
+            // Add clickable example questions
+            const exampleQuestions = [
+                "How does quantum computing work?",
+                "What are the implications of artificial general intelligence?", 
+                "How do black holes form?",
+                "What is the future of renewable energy?",
+                "How does consciousness emerge from neural activity?"
+            ];
+
+            exampleQuestions.forEach((question, index) => {
+                setTimeout(() => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message bot';
+                    messageDiv.style.cursor = 'pointer';
+                    messageDiv.style.background = 'rgba(102, 126, 234, 0.1)';
+                    messageDiv.style.border = '1px solid rgba(102, 126, 234, 0.3)';
+                    messageDiv.onclick = () => startNewConversation(question);
+                    
+                    messageDiv.innerHTML = `
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span>${index + 1}. ${question}</span>
+                            <i class="fas fa-arrow-right" style="color: var(--accent);"></i>
+                        </div>
+                    `;
+                    
+                    chatMessages.appendChild(messageDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, index * 500);
+            });
         }, 3000);
 
         // Smooth scrolling for navigation

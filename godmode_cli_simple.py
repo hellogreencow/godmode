@@ -32,15 +32,16 @@ class GodModeCLI:
     def __init__(self):
         self.console = Console()
         self.conversation_history: List[Dict[str, Any]] = []
-        self.predictor = conversation_predictor
+        # Use demo mode by default to avoid API dependency
+        from godmode.core.conversation_predictor import ConversationPredictor
+        self.predictor = ConversationPredictor(demo_mode=True)
 
     async def run(self):
         """Main CLI loop."""
         self.show_welcome()
 
-        # Setup OpenRouter
-        if not await self.setup_openrouter():
-            return
+        # Skip OpenRouter setup in demo mode
+        self.console.print("[green]✅ Demo mode enabled - no API required![/green]")
 
         while True:
             try:

@@ -70,9 +70,10 @@ class PredictionResult:
 class ConversationPredictor:
     """AI-powered conversation prediction engine."""
 
-    def __init__(self, openrouter_config: Optional[OpenRouterConfig] = None):
+    def __init__(self, openrouter_config: Optional[OpenRouterConfig] = None, demo_mode: bool = False):
         """Initialize the conversation predictor."""
-        self.openrouter = OpenRouterIntegration(openrouter_config)
+        self.demo_mode = demo_mode
+        self.openrouter = OpenRouterIntegration(openrouter_config) if not demo_mode else None
         self.conversation_history: List[ConversationNode] = []
         self.prediction_cache: Dict[str, PredictionResult] = {}
 
@@ -106,29 +107,41 @@ class ConversationPredictor:
         logger.info(f"🔮 Predicting conversation for: {current_question[:100]}...")
 
         # Step 1: Analyze and select reasoning type
-        reasoning_analysis = await self._analyze_reasoning_type(current_question)
+        if self.demo_mode:
+            reasoning_analysis = self._demo_reasoning_analysis(current_question)
+        else:
+            reasoning_analysis = await self._analyze_reasoning_type(current_question)
 
         # Step 2: Predict future questions
-        future_questions = await self._predict_future_questions(
-            current_question,
-            conversation_context,
-            max_future_questions,
-            reasoning_analysis['type']
-        )
+        if self.demo_mode:
+            future_questions = self._demo_future_questions(current_question, max_future_questions)
+        else:
+            future_questions = await self._predict_future_questions(
+                current_question,
+                conversation_context,
+                max_future_questions,
+                reasoning_analysis['type']
+            )
 
         # Step 3: Explore alternative branches
-        alternative_branches = await self._explore_branches(
-            current_question,
-            conversation_context,
-            max_branches
-        )
+        if self.demo_mode:
+            alternative_branches = self._demo_branches(current_question, max_branches)
+        else:
+            alternative_branches = await self._explore_branches(
+                current_question,
+                conversation_context,
+                max_branches
+            )
 
         # Step 4: Reveal origin questions
-        origin_questions = await self._reveal_origin_questions(
-            current_question,
-            conversation_context,
-            max_origin_questions
-        )
+        if self.demo_mode:
+            origin_questions = self._demo_origin_questions(current_question, max_origin_questions)
+        else:
+            origin_questions = await self._reveal_origin_questions(
+                current_question,
+                conversation_context,
+                max_origin_questions
+            )
 
         # Step 5: Calculate overall confidence
         confidence_score = self._calculate_prediction_confidence(
@@ -485,10 +498,267 @@ What {max_origins} questions would someone need to ask (in sequence) to naturall
             logger.error(f"Failed to get models: {e}")
             return []
 
+    def _demo_reasoning_analysis(self, question: str) -> Dict[str, str]:
+        """Demo reasoning analysis without API calls."""
+        question_lower = question.lower()
+        
+        # Simple pattern matching for demo
+        if any(word in question_lower for word in ['how', 'what', 'why', 'explain']):
+            if any(word in question_lower for word in ['quantum', 'physics', 'science']):
+                return {
+                    'type': 'hierarchical',
+                    'explanation': 'Selected hierarchical reasoning for complex scientific concepts that require multi-level understanding from theoretical foundations to practical applications.'
+                }
+            elif any(word in question_lower for word in ['strategy', 'plan', 'approach']):
+                return {
+                    'type': 'forward',
+                    'explanation': 'Selected forward reasoning for strategic planning that benefits from step-by-step logical progression from current state to desired outcomes.'
+                }
+            elif any(word in question_lower for word in ['problem', 'issue', 'challenge']):
+                return {
+                    'type': 'backward',
+                    'explanation': 'Selected backward reasoning for problem-solving that works best when starting from desired solutions and working backwards to identify requirements.'
+                }
+        
+        return {
+            'type': 'analogical',
+            'explanation': 'Selected analogical reasoning to find similar patterns and adapt successful approaches from related domains.'
+        }
+
+    def _demo_future_questions(self, question: str, max_questions: int) -> List[str]:
+        """Generate demo future questions based on the current question."""
+        question_lower = question.lower()
+        
+        # Question templates based on topic
+        if 'quantum' in question_lower:
+            return [
+                "What are the practical applications of quantum computing?",
+                "How do quantum computers compare to classical computers in terms of speed?",
+                "What are the main challenges in building quantum computers?",
+                "How does quantum entanglement work in quantum computing?",
+                "What programming languages are used for quantum computing?",
+                "Which companies are leading in quantum computing research?",
+                "How will quantum computing affect cybersecurity?",
+                "What is quantum supremacy and has it been achieved?",
+                "How do quantum algorithms differ from classical algorithms?",
+                "What are the limitations of current quantum computers?",
+                "How does error correction work in quantum systems?",
+                "What is the timeline for practical quantum computing?",
+                "How much do quantum computers cost to build and operate?",
+                "What skills do I need to work in quantum computing?",
+                "How does quantum computing relate to artificial intelligence?",
+                "What are quantum gates and how do they work?",
+                "How does decoherence affect quantum computations?",
+                "What is the difference between quantum annealing and gate-based quantum computing?",
+                "How do quantum computers handle noise and interference?",
+                "What are the ethical implications of quantum computing?",
+                "How will quantum computing change drug discovery?",
+                "What is quantum machine learning?",
+                "How do you program a quantum computer?",
+                "What are the different types of quantum computers?",
+                "How does quantum computing affect blockchain and cryptocurrencies?",
+                "What is quantum networking and quantum internet?",
+                "How do quantum sensors work?",
+                "What is the role of quantum computing in optimization problems?",
+                "How does quantum computing relate to quantum physics research?",
+                "What are the environmental impacts of quantum computing?"
+            ][:max_questions]
+        
+        elif any(word in question_lower for word in ['ai', 'artificial intelligence', 'machine learning']):
+            return [
+                "What are the different types of machine learning algorithms?",
+                "How does deep learning differ from traditional machine learning?",
+                "What are neural networks and how do they work?",
+                "What are the ethical concerns around artificial intelligence?",
+                "How is AI being used in healthcare and medicine?",
+                "What jobs will AI replace in the next 10 years?",
+                "How does natural language processing work?",
+                "What is the difference between AI, ML, and deep learning?",
+                "How do recommendation systems work?",
+                "What are the limitations of current AI systems?",
+                "How is AI being used in autonomous vehicles?",
+                "What is artificial general intelligence (AGI)?",
+                "How does computer vision work in AI systems?",
+                "What are the main challenges in AI development?",
+                "How do you train a machine learning model?",
+                "What is reinforcement learning and how is it used?",
+                "How does AI bias occur and how can it be prevented?",
+                "What programming languages are best for AI development?",
+                "How much data do you need to train an AI model?",
+                "What is the difference between supervised and unsupervised learning?",
+                "How does AI impact privacy and data security?",
+                "What are generative AI models and how do they work?",
+                "How is AI being used in finance and trading?",
+                "What is the future of human-AI collaboration?",
+                "How does AI help in climate change research?",
+                "What are the hardware requirements for AI development?",
+                "How does AI assist in scientific research?",
+                "What is explainable AI and why is it important?",
+                "How does AI learn from small datasets?",
+                "What are the regulatory challenges for AI deployment?"
+            ][:max_questions]
+        
+        # Generic future questions for any topic
+        return [
+            f"What are the practical applications of {self._extract_main_topic(question)}?",
+            f"What are the main challenges in {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} compare to alternatives?",
+            f"What are the benefits and drawbacks of {self._extract_main_topic(question)}?",
+            f"What skills are needed to work with {self._extract_main_topic(question)}?",
+            f"What is the future outlook for {self._extract_main_topic(question)}?",
+            f"How much does {self._extract_main_topic(question)} cost to implement?",
+            f"What are the ethical considerations of {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} affect society?",
+            f"What are the latest developments in {self._extract_main_topic(question)}?",
+            f"How do you get started with {self._extract_main_topic(question)}?",
+            f"What are common misconceptions about {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} work at a technical level?",
+            f"What are the environmental impacts of {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} integrate with existing systems?",
+            f"What are the security implications of {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} affect different industries?",
+            f"What research is being done on {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} handle scalability?",
+            f"What are the performance characteristics of {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} compare globally?",
+            f"What are the legal frameworks around {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} impact the economy?",
+            f"What are the educational requirements for {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} handle data privacy?",
+            f"What are the quality control measures for {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} ensure reliability?",
+            f"What are the maintenance requirements of {self._extract_main_topic(question)}?",
+            f"How does {self._extract_main_topic(question)} adapt to changes?",
+            f"What are the long-term implications of {self._extract_main_topic(question)}?"
+        ][:max_questions]
+
+    def _demo_branches(self, question: str, max_branches: int) -> List[ConversationBranch]:
+        """Generate demo conversation branches."""
+        main_topic = self._extract_main_topic(question)
+        
+        branches = [
+            ConversationBranch(
+                branch_id="technical_deep_dive",
+                nodes=[],
+                probability=0.8,
+                reasoning_path=f"Technical deep dive into {main_topic} mechanisms and implementation details",
+                outcome_prediction=f"Comprehensive technical understanding of {main_topic}",
+                key_decision_points=[f"Technical aspects of {main_topic}"]
+            ),
+            ConversationBranch(
+                branch_id="practical_applications",
+                nodes=[],
+                probability=0.7,
+                reasoning_path=f"Exploration of real-world applications and use cases for {main_topic}",
+                outcome_prediction=f"Understanding practical implementations of {main_topic}",
+                key_decision_points=[f"Applications of {main_topic}"]
+            ),
+            ConversationBranch(
+                branch_id="comparative_analysis",
+                nodes=[],
+                probability=0.6,
+                reasoning_path=f"Comparative analysis of {main_topic} versus alternative approaches",
+                outcome_prediction=f"Clear understanding of {main_topic} advantages and trade-offs",
+                key_decision_points=[f"Comparison of {main_topic} with alternatives"]
+            ),
+            ConversationBranch(
+                branch_id="future_implications",
+                nodes=[],
+                probability=0.5,
+                reasoning_path=f"Discussion of future developments and societal impact of {main_topic}",
+                outcome_prediction=f"Insight into long-term implications of {main_topic}",
+                key_decision_points=[f"Future of {main_topic}"]
+            ),
+            ConversationBranch(
+                branch_id="learning_path",
+                nodes=[],
+                probability=0.4,
+                reasoning_path=f"Educational pathway and skill development for {main_topic}",
+                outcome_prediction=f"Clear learning roadmap for mastering {main_topic}",
+                key_decision_points=[f"Learning {main_topic}"]
+            )
+        ]
+        
+        return branches[:max_branches]
+
+    def _demo_origin_questions(self, question: str, max_origins: int) -> List[str]:
+        """Generate demo origin questions that could lead to the current question."""
+        main_topic = self._extract_main_topic(question)
+        
+        # Generic origin questions that build up to any topic
+        origins = [
+            "What is the difference between traditional and modern computing?",
+            "How do computers process information at the most basic level?",
+            "What are the fundamental principles of information theory?",
+            "How do mathematical concepts translate into practical applications?",
+            "What drives innovation in technology and science?",
+            "How do we solve complex problems that seem impossible?",
+            "What are the limits of current technology?",
+            "How do we measure the efficiency of different approaches?",
+            "What makes some technologies more successful than others?",
+            "How do we evaluate the potential of emerging technologies?"
+        ]
+        
+        # Topic-specific origin questions
+        if 'quantum' in question.lower():
+            origins = [
+                "What are the limitations of classical physics?",
+                "How do particles behave at the atomic level?",
+                "What is superposition in quantum mechanics?",
+                "How do we harness quantum effects for practical use?",
+                "What makes quantum systems different from classical systems?",
+                "How do we control quantum states?",
+                "What are the principles of quantum mechanics?",
+                "How do we measure quantum phenomena?",
+                "What is the relationship between information and physics?",
+                f"How can quantum principles be applied to {main_topic}?"
+            ]
+        elif any(word in question.lower() for word in ['ai', 'machine learning']):
+            origins = [
+                "How do humans learn and process information?",
+                "What is the difference between data and information?",
+                "How do we recognize patterns in complex data?",
+                "What makes some decisions better than others?",
+                "How do we automate complex reasoning tasks?",
+                "What is intelligence and how do we measure it?",
+                "How do we represent knowledge in computers?",
+                "What are the principles of problem-solving?",
+                "How do we optimize decision-making processes?",
+                f"How can we create systems that learn like humans for {main_topic}?"
+            ]
+        
+        return origins[:max_origins]
+
+    def _extract_main_topic(self, question: str) -> str:
+        """Extract the main topic from a question for demo purposes."""
+        # Simple keyword extraction
+        words = question.lower().split()
+        
+        # Look for key technical terms
+        key_terms = [
+            'quantum computing', 'machine learning', 'artificial intelligence', 'ai',
+            'blockchain', 'cryptocurrency', 'neural networks', 'deep learning',
+            'robotics', 'automation', 'cybersecurity', 'cloud computing',
+            'data science', 'biotechnology', 'nanotechnology', 'renewable energy'
+        ]
+        
+        for term in key_terms:
+            if term in question.lower():
+                return term
+        
+        # Fallback to first meaningful word
+        stop_words = {'how', 'what', 'why', 'when', 'where', 'does', 'do', 'is', 'are', 'the', 'a', 'an'}
+        for word in words:
+            if word not in stop_words and len(word) > 3:
+                return word
+        
+        return 'this topic'
+
     async def close(self):
         """Clean up resources."""
-        await self.openrouter.close()
+        if self.openrouter:
+            await self.openrouter.close()
 
 
-# Global predictor instance
-conversation_predictor = ConversationPredictor()
+# Global predictor instance with demo mode enabled when API unavailable
+conversation_predictor = ConversationPredictor(demo_mode=True)
