@@ -261,6 +261,79 @@
             margin-bottom: 0.5rem;
         }
 
+        .conversation-simulation {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .conversation-turn {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .turn-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .turn-number {
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 1.1rem;
+        }
+
+        .confidence-badge {
+            background: var(--success);
+            color: black;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-left: auto;
+        }
+
+        .user-question {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .ai-response {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 3px solid var(--warning);
+        }
+
+        .speaker-label {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .ai-response .speaker-label {
+            color: var(--warning);
+        }
+
+        .response-text {
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .conversation-turn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
         .prediction-number {
             display: inline-block;
             background: var(--accent);
@@ -396,21 +469,21 @@
             </div>
         </div>
 
-        <!-- Future Questions Panel -->
-        <div class="prediction-panel" id="future-questions-panel" style="display: none;">
+        <!-- Future Conversation Panel -->
+        <div class="prediction-panel" id="future-conversation-panel" style="display: none;">
             <div class="prediction-header">
                 <div class="prediction-icon">
                     <i class="fas fa-eye"></i>
                 </div>
                 <div>
-                    <div class="prediction-title">🔮 Future Questions</div>
-                    <div class="text-secondary">The next questions in your conversation</div>
+                    <div class="prediction-title">🔮 Future Conversation Simulation</div>
+                    <div class="text-secondary">Complete conversation with questions AND AI responses</div>
                 </div>
             </div>
-            <div id="future-questions-content">
+            <div id="future-conversation-content">
                 <div class="text-center text-secondary">
                     <i class="fas fa-spinner fa-spin me-2"></i>
-                    Predicting future questions...
+                    Simulating complete conversation...
                 </div>
             </div>
         </div>
@@ -501,8 +574,8 @@
                 case 'reasoning_selected':
                     updateReasoningIndicator(data.reasoning_type, data.explanation, data.confidence);
                     break;
-                case 'future_questions':
-                    displayFutureQuestions(data.questions);
+                case 'future_conversation':
+                    displayFutureConversation(data.conversation_turns);
                     break;
                 case 'conversation_branches':
                     displayBranches(data.branches);
@@ -618,24 +691,43 @@
             fillEl.style.width = `${confidence * 100}%`;
         }
 
-        function displayFutureQuestions(questions) {
-            const panel = document.getElementById('future-questions-panel');
-            const content = document.getElementById('future-questions-content');
+        function displayFutureConversation(conversationTurns) {
+            const panel = document.getElementById('future-conversation-panel');
+            const content = document.getElementById('future-conversation-content');
 
-            if (questions && questions.length > 0) {
-                let html = '<div class="prediction-grid">';
-                questions.slice(0, 12).forEach((question, index) => {
+            if (conversationTurns && conversationTurns.length > 0) {
+                let html = '<div class="conversation-simulation">';
+                
+                conversationTurns.slice(0, 10).forEach((turn, index) => {
                     html += `
-                        <div class="prediction-item clickable-question" data-question="${question.replace(/"/g, '&quot;')}" onclick="startNewConversation('${question.replace(/"/g, '&quot;')}')">
-                            <span class="prediction-number">${index + 1}</span>
-                            <div class="question-text">${question}</div>
-                            <div class="click-hint"><i class="fas fa-arrow-right"></i> Click to explore this path</div>
+                        <div class="conversation-turn" data-turn="${turn.turn_number}">
+                            <div class="turn-header">
+                                <span class="turn-number">Turn ${turn.turn_number}</span>
+                                <span class="confidence-badge">${Math.round(turn.confidence * 100)}%</span>
+                            </div>
+                            
+                            <div class="user-question clickable-question" onclick="startNewConversation('${turn.user_question.replace(/"/g, '&quot;')}')">
+                                <div class="speaker-label">
+                                    <i class="fas fa-user"></i> You:
+                                </div>
+                                <div class="question-text">${turn.user_question}</div>
+                                <div class="click-hint"><i class="fas fa-arrow-right"></i> Click to start from here</div>
+                            </div>
+                            
+                            <div class="ai-response">
+                                <div class="speaker-label">
+                                    <i class="fas fa-robot"></i> GodMode AI:
+                                </div>
+                                <div class="response-text">${turn.ai_response}</div>
+                            </div>
                         </div>
                     `;
                 });
-                if (questions.length > 12) {
-                    html += `<div class="prediction-item text-secondary">... and ${questions.length - 12} more predicted questions</div>`;
+                
+                if (conversationTurns.length > 10) {
+                    html += `<div class="conversation-turn text-secondary text-center">... and ${conversationTurns.length - 10} more conversation turns</div>`;
                 }
+                
                 html += '</div>';
                 content.innerHTML = html;
                 panel.style.display = 'block';
@@ -693,7 +785,7 @@
 
         function startNewConversation(question) {
             // Clear current predictions
-            document.getElementById('future-questions-panel').style.display = 'none';
+            document.getElementById('future-conversation-panel').style.display = 'none';
             document.getElementById('branches-panel').style.display = 'none';
             document.getElementById('origins-panel').style.display = 'none';
             document.getElementById('reasoning-display').style.display = 'none';

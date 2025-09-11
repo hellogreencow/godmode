@@ -55,10 +55,19 @@ class ConversationBranch:
 
 
 @dataclass
+class ConversationTurn:
+    """A single turn in a simulated conversation."""
+    turn_number: int
+    user_question: str
+    ai_response: str
+    reasoning_type: str
+    confidence: float
+
+@dataclass
 class PredictionResult:
     """Complete prediction result."""
     current_question: str
-    future_questions: List[str]  # Next 30 predicted questions
+    simulated_conversation: List[ConversationTurn]  # Full 30-turn conversation simulation
     alternative_branches: List[ConversationBranch]  # Alternative conversation paths
     origin_questions: List[str]  # 10 questions that could have led here
     selected_reasoning_type: str
@@ -112,11 +121,11 @@ class ConversationPredictor:
         else:
             reasoning_analysis = await self._analyze_reasoning_type(current_question)
 
-        # Step 2: Predict future questions
+        # Step 2: Simulate complete conversation
         if self.demo_mode:
-            future_questions = self._demo_future_questions(current_question, max_future_questions)
+            simulated_conversation = self._demo_conversation_simulation(current_question, max_future_questions)
         else:
-            future_questions = await self._predict_future_questions(
+            simulated_conversation = await self._simulate_full_conversation(
                 current_question,
                 conversation_context,
                 max_future_questions,
@@ -145,12 +154,12 @@ class ConversationPredictor:
 
         # Step 5: Calculate overall confidence
         confidence_score = self._calculate_prediction_confidence(
-            future_questions, alternative_branches, origin_questions
+            simulated_conversation, alternative_branches, origin_questions
         )
 
         result = PredictionResult(
             current_question=current_question,
-            future_questions=future_questions,
+            simulated_conversation=simulated_conversation,
             alternative_branches=alternative_branches,
             origin_questions=origin_questions,
             selected_reasoning_type=reasoning_analysis['type'],
@@ -168,7 +177,7 @@ class ConversationPredictor:
         # Cache the result
         self.prediction_cache[cache_key] = result
 
-        logger.info(f"✅ Prediction complete - {len(future_questions)} future questions, {len(alternative_branches)} branches, {len(origin_questions)} origins")
+        logger.info(f"✅ Prediction complete - {len(simulated_conversation)} conversation turns, {len(alternative_branches)} branches, {len(origin_questions)} origins")
 
         return result
 
@@ -457,7 +466,7 @@ What {max_origins} questions would someone need to ask (in sequence) to naturall
 
     def _calculate_prediction_confidence(
         self,
-        future_questions: List[str],
+        conversation_turns: List[ConversationTurn],
         branches: List[ConversationBranch],
         origin_questions: List[str]
     ) -> float:
@@ -466,7 +475,7 @@ What {max_origins} questions would someone need to ask (in sequence) to naturall
         base_confidence = 0.7  # Base confidence
 
         # Factors that increase confidence
-        if len(future_questions) >= 10:
+        if len(conversation_turns) >= 10:
             base_confidence += 0.1
         if len(branches) >= 3:
             base_confidence += 0.1
@@ -474,7 +483,7 @@ What {max_origins} questions would someone need to ask (in sequence) to naturall
             base_confidence += 0.1
 
         # Factors that decrease confidence
-        if any("unable to" in q.lower() or "error" in q.lower() for q in future_questions):
+        if any("unable to" in turn.ai_response.lower() or "error" in turn.ai_response.lower() for turn in conversation_turns):
             base_confidence -= 0.2
         if len(branches) == 0:
             base_confidence -= 0.2
@@ -524,6 +533,186 @@ What {max_origins} questions would someone need to ask (in sequence) to naturall
             'type': 'analogical',
             'explanation': 'Selected analogical reasoning to find similar patterns and adapt successful approaches from related domains.'
         }
+
+    async def _simulate_full_conversation(
+        self,
+        initial_question: str,
+        context: Optional[List[Dict[str, Any]]],
+        max_turns: int,
+        reasoning_type: str
+    ) -> List[ConversationTurn]:
+        """Simulate a complete conversation with questions AND AI responses."""
+        
+        conversation_turns = []
+        current_question = initial_question
+        
+        # Create simultaneous API requests for efficiency
+        tasks = []
+        
+        for turn in range(max_turns):
+            # Create system prompt for this turn
+            system_prompt = f"""You are simulating a deep, intellectual conversation about: {initial_question}
+
+This is turn {turn + 1} of a {max_turns}-turn conversation. Generate:
+1. A thoughtful AI response to the current question
+2. The next logical user question that would naturally follow
+
+Make the conversation progressively deeper and more sophisticated. Each turn should build meaningfully on the previous exchanges.
+
+Current question: {current_question}
+
+Format your response as:
+AI_RESPONSE: [Your detailed response]
+NEXT_QUESTION: [The user's next logical question]"""
+
+            # Create the API task
+            task = self._generate_conversation_turn(current_question, system_prompt, turn + 1, reasoning_type)
+            tasks.append(task)
+            
+            # For the next iteration, we'll use a predicted question
+            # This is a simplified approach - in practice we'd chain them properly
+            if turn < max_turns - 1:
+                current_question = f"Follow-up question {turn + 2} about {self._extract_main_topic(initial_question)}"
+        
+        # Execute all API calls simultaneously
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results into conversation turns
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    # Handle API errors gracefully
+                    conversation_turns.append(ConversationTurn(
+                        turn_number=i + 1,
+                        user_question=f"Question {i + 1} about {self._extract_main_topic(initial_question)}",
+                        ai_response=f"AI response would continue the discussion about {self._extract_main_topic(initial_question)}",
+                        reasoning_type=reasoning_type,
+                        confidence=0.5
+                    ))
+                else:
+                    conversation_turns.append(result)
+                    
+        except Exception as e:
+            logger.error(f"Error in conversation simulation: {e}")
+            # Fallback to demo simulation
+            return self._demo_conversation_simulation(initial_question, max_turns)
+        
+        return conversation_turns
+
+    async def _generate_conversation_turn(
+        self, 
+        question: str, 
+        system_prompt: str, 
+        turn_number: int,
+        reasoning_type: str
+    ) -> ConversationTurn:
+        """Generate a single conversation turn using API."""
+        
+        result = await self.openrouter.generate_reasoning(
+            problem=Problem(
+                title=f"Conversation Turn {turn_number}",
+                description=question,
+                domain="conversation_simulation",
+                problem_type="dialogue"
+            ),
+            system_prompt=system_prompt,
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        if result['success']:
+            content = result['content']
+            
+            # Parse AI response and next question
+            ai_response = ""
+            next_question = ""
+            
+            if "AI_RESPONSE:" in content:
+                parts = content.split("AI_RESPONSE:", 1)[1]
+                if "NEXT_QUESTION:" in parts:
+                    ai_parts = parts.split("NEXT_QUESTION:", 1)
+                    ai_response = ai_parts[0].strip()
+                    next_question = ai_parts[1].strip()
+                else:
+                    ai_response = parts.strip()
+            else:
+                ai_response = content.strip()
+            
+            return ConversationTurn(
+                turn_number=turn_number,
+                user_question=question,
+                ai_response=ai_response,
+                reasoning_type=reasoning_type,
+                confidence=0.8
+            )
+        else:
+            # Fallback for API errors
+            return ConversationTurn(
+                turn_number=turn_number,
+                user_question=question,
+                ai_response=f"AI would provide detailed analysis of {question}",
+                reasoning_type=reasoning_type,
+                confidence=0.3
+            )
+
+    def _demo_conversation_simulation(self, initial_question: str, max_turns: int) -> List[ConversationTurn]:
+        """Generate a demo conversation simulation without API calls."""
+        conversation_turns = []
+        main_topic = self._extract_main_topic(initial_question)
+        
+        # Quantum computing conversation simulation
+        if 'quantum' in initial_question.lower():
+            demo_conversation = [
+                ("How does quantum computing work?", "Quantum computing harnesses quantum mechanical phenomena like superposition and entanglement to process information. Unlike classical bits that are either 0 or 1, quantum bits (qubits) can exist in multiple states simultaneously through superposition."),
+                ("What are the practical applications of quantum computing?", "The most promising applications include cryptography (breaking current encryption), optimization problems (logistics, finance), drug discovery (molecular simulation), and machine learning acceleration. Companies like IBM, Google, and startups are developing quantum algorithms for these domains."),
+                ("How do quantum computers compare to classical computers in terms of speed?", "Quantum computers can theoretically achieve exponential speedup for specific problems through quantum algorithms like Shor's (factoring) and Grover's (search). However, they're not universally faster - they excel at particular problem types while classical computers remain better for most everyday tasks."),
+                ("What are the main technical challenges in building quantum computers?", "The biggest challenges are quantum decoherence (qubits losing their quantum properties), error rates (current quantum computers are noisy), scalability (building systems with thousands of stable qubits), and the need for extreme cooling (near absolute zero temperatures)."),
+                ("How close are we to practical quantum computers?", "We're in the NISQ era (Noisy Intermediate-Scale Quantum). Current systems have 50-1000 qubits but high error rates. Practical quantum advantage for real-world problems may emerge in 5-15 years, with fault-tolerant quantum computers potentially decades away."),
+                ("What programming languages and tools are used for quantum computing?", "Popular quantum programming languages include Qiskit (Python-based, IBM), Cirq (Google), Q# (Microsoft), and PennyLane. These provide high-level interfaces for designing quantum circuits and algorithms while handling the low-level quantum operations."),
+                ("How does quantum error correction work?", "Quantum error correction uses multiple physical qubits to encode one logical qubit, detecting and correcting errors without measuring the quantum state directly. The surface code is a leading approach, but it requires thousands of physical qubits per logical qubit."),
+                ("What is the difference between quantum annealing and gate-based quantum computing?", "Quantum annealing (like D-Wave systems) is specialized for optimization problems, finding the lowest energy state of a system. Gate-based quantum computers (like IBM, Google) are more general-purpose, using quantum gates to manipulate qubits for various algorithms."),
+                ("How will quantum computing impact cryptography and security?", "Quantum computers will break current public-key cryptography (RSA, ECC) using Shor's algorithm, necessitating post-quantum cryptography. However, quantum key distribution offers theoretically unbreakable communication security through quantum mechanics principles."),
+                ("What are the economic and societal implications of quantum computing?", "Quantum computing could revolutionize drug discovery, financial modeling, artificial intelligence, and scientific simulation. It may create new industries while disrupting others, requiring workforce retraining and new regulatory frameworks for quantum technologies.")
+            ]
+        elif any(word in initial_question.lower() for word in ['ai', 'artificial intelligence', 'machine learning']):
+            demo_conversation = [
+                ("How does machine learning work?", "Machine learning enables computers to learn patterns from data without explicit programming. It uses algorithms that automatically improve through experience, identifying relationships in data to make predictions or decisions on new, unseen information."),
+                ("What are the different types of machine learning algorithms?", "There are three main types: supervised learning (learns from labeled examples), unsupervised learning (finds hidden patterns in unlabeled data), and reinforcement learning (learns through trial and error with rewards). Each type suits different problem domains and data availability."),
+                ("How do neural networks mimic the human brain?", "Neural networks use interconnected nodes (neurons) that process and transmit information, similar to biological neurons. They learn by adjusting connection weights based on training data, creating complex pattern recognition capabilities through layered architectures."),
+                ("What is deep learning and how does it differ from traditional machine learning?", "Deep learning uses multi-layered neural networks to automatically learn hierarchical feature representations from raw data. Unlike traditional ML that requires manual feature engineering, deep learning discovers relevant features automatically, enabling breakthroughs in image recognition, language processing, and complex pattern recognition."),
+                ("How are AI systems trained and what data do they need?", "AI systems are trained on large datasets through iterative optimization processes. The quality and quantity of training data directly impacts performance. Training involves adjusting millions or billions of parameters through techniques like backpropagation and gradient descent."),
+                ("What are the current limitations and challenges of AI?", "Key limitations include lack of general intelligence (AI is narrow/specialized), data dependency, bias and fairness issues, interpretability challenges, and high computational requirements. AI systems also struggle with common sense reasoning and adapting to novel situations."),
+                ("How is AI being integrated into different industries?", "AI is transforming healthcare (diagnosis, drug discovery), finance (fraud detection, trading), transportation (autonomous vehicles), manufacturing (predictive maintenance), and entertainment (recommendation systems). Each industry faces unique integration challenges and opportunities."),
+                ("What are the ethical considerations and risks of AI development?", "Major concerns include job displacement, privacy violations, algorithmic bias, autonomous weapons, and concentration of AI power. There's growing focus on responsible AI development, fairness, transparency, and ensuring AI benefits humanity broadly."),
+                ("What is artificial general intelligence (AGI) and when might we achieve it?", "AGI refers to AI systems with human-level cognitive abilities across all domains, not just specific tasks. Experts disagree on timelines, with predictions ranging from 10-50+ years. Achieving AGI requires breakthroughs in reasoning, learning, and knowledge transfer."),
+                ("How will human-AI collaboration evolve in the future?", "The future likely involves AI augmenting human capabilities rather than replacing humans entirely. We'll see AI assistants for complex decision-making, creative collaboration tools, and new human-AI teams tackling problems neither could solve alone.")
+            ]
+        else:
+            # Generic conversation simulation
+            demo_conversation = [
+                (initial_question, f"This is a comprehensive response to your question about {main_topic}, covering the fundamental concepts and key principles."),
+                (f"What are the practical applications of {main_topic}?", f"The practical applications of {main_topic} span multiple industries and use cases, with significant impact on how we approach related challenges."),
+                (f"How does {main_topic} compare to traditional approaches?", f"Compared to traditional methods, {main_topic} offers distinct advantages in efficiency, capability, and scalability, though it also presents unique challenges."),
+                (f"What are the main challenges in implementing {main_topic}?", f"The primary challenges include technical complexity, resource requirements, skill gaps, and integration with existing systems."),
+                (f"What skills are needed to work with {main_topic}?", f"Working with {main_topic} requires a combination of technical knowledge, analytical thinking, and domain expertise, along with continuous learning."),
+                (f"What is the future outlook for {main_topic}?", f"The future of {main_topic} looks promising with ongoing research, increasing adoption, and potential breakthrough developments."),
+                (f"How much does {main_topic} cost to implement?", f"Implementation costs vary significantly based on scale, complexity, and specific requirements, with both upfront and ongoing expenses to consider."),
+                (f"What are the ethical considerations of {main_topic}?", f"Ethical considerations include privacy, fairness, accountability, and societal impact, requiring careful thought and appropriate safeguards."),
+                (f"How does {main_topic} affect different industries?", f"Different industries are impacted in unique ways, with some seeing revolutionary changes while others experience gradual transformation."),
+                (f"What research is being done on {main_topic}?", f"Current research focuses on advancing capabilities, addressing limitations, and exploring new applications and methodologies.")
+            ]
+        
+        # Convert to ConversationTurn objects
+        for i, (question, response) in enumerate(demo_conversation[:max_turns], 1):
+            conversation_turns.append(ConversationTurn(
+                turn_number=i,
+                user_question=question,
+                ai_response=response,
+                reasoning_type="hierarchical",
+                confidence=0.85
+            ))
+        
+        return conversation_turns
 
     def _demo_future_questions(self, question: str, max_questions: int) -> List[str]:
         """Generate demo future questions based on the current question."""

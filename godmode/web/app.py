@@ -193,9 +193,18 @@ class GodModeWebApp:
                     client_id
                 )
 
-                # Send future questions
+                # Send future conversation simulation
                 await self.websocket_manager.send_personal_message(
-                    {"type": "future_questions", "questions": result.future_questions},
+                    {"type": "future_conversation", "conversation_turns": [
+                        {
+                            "turn_number": turn.turn_number,
+                            "user_question": turn.user_question,
+                            "ai_response": turn.ai_response,
+                            "reasoning_type": turn.reasoning_type,
+                            "confidence": turn.confidence
+                        }
+                        for turn in result.simulated_conversation
+                    ]},
                     client_id
                 )
 
