@@ -63,3 +63,7 @@ pytest-benchmark>=4.0.0
 black>=23.11.0
 ruff>=0.1.0
 mypy>=1.7.0
+
+# External API integration
+httpx>=0.25.0
+python-dotenv>=1.0.0
