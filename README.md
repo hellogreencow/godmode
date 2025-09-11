@@ -1,6 +1,4 @@
-<<<<<<< Current (Your changes)
-hi
-=======
+
 # 🧠 GodMode: Advanced Hierarchical Reasoning System
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/release/python-3110/)
