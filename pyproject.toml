@@ -1,0 +1,225 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "godmode"
+version = "1.0.0"
+description = "Advanced AI-powered reasoning system with hierarchical cognitive architectures"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "GodMode AI", email = "ai@godmode.dev"},
+]
+keywords = [
+    "artificial-intelligence",
+    "hierarchical-reasoning",
+    "cognitive-architecture",
+    "neural-networks",
+    "advanced-ai",
+    "machine-learning",
+    "knowledge-graphs",
+    "semantic-reasoning"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    # Core AI/ML frameworks
+    "torch>=2.1.0",
+    "transformers>=4.35.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    
+    # Advanced neural network architectures
+    "pytorch-lightning>=2.1.0",
+    "torchvision>=0.16.0",
+    "diffusers>=0.24.0",
+    
+    # Graph neural networks and reasoning
+    "torch-geometric>=2.4.0",
+    "networkx>=3.2",
+    "dgl>=1.1.0",
+    
+    # Knowledge graphs and ontologies
+    "rdflib>=7.0.0",
+    "owlrl>=6.0.2",
+    "sparqlwrapper>=2.0.0",
+    
+    # Advanced data processing
+    "pandas>=2.1.0",
+    "polars>=0.20.0",
+    "pyarrow>=14.0.0",
+    
+    # Async and performance
+    "asyncio>=3.4.3",
+    "aiohttp>=3.9.0",
+    "uvloop>=0.19.0",
+    "orjson>=3.9.0",
+    
+    # Validation and schemas
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "jsonschema>=4.20.0",
+    
+    # Web framework and APIs
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "websockets>=12.0",
+    
+    # Monitoring and observability
+    "prometheus-client>=0.19.0",
+    "structlog>=23.2.0",
+    "opentelemetry-api>=1.21.0",
+    "opentelemetry-sdk>=1.21.0",
+    
+    # Advanced utilities
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "httpx>=0.25.0",
+    "tenacity>=8.2.0",
+    
+    # Security and encryption
+    "cryptography>=41.0.0",
+    "pyjwt>=2.8.0",
+    
+    # Development and testing
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-benchmark>=4.0.0",
+    "black>=23.11.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.6.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.27.0",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+    "plotly>=5.17.0",
+]
+
+gpu = [
+    "torch[cuda]>=2.1.0",
+    "cupy-cuda12x>=12.3.0",
+]
+
+experimental = [
+    "jax[cuda12_pip]>=0.4.20",
+    "flax>=0.7.5",
+    "optax>=0.1.7",
+    "equinox>=0.11.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/godmode-ai/godmode"
+Documentation = "https://godmode-ai.github.io/godmode"
+Repository = "https://github.com/godmode-ai/godmode"
+Issues = "https://github.com/godmode-ai/godmode/issues"
+
+[project.scripts]
+godmode = "godmode.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["godmode*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "benchmark: marks tests as benchmarks",
+]
+
+[tool.coverage.run]
+source = ["godmode"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

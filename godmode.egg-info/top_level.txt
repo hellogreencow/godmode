@@ -1,0 +1,2 @@
+godmode
+godmode_cli
