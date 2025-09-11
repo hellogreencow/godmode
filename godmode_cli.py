@@ -7,6 +7,7 @@ import asyncio
 import os
 import sys
 import json
+import socket
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,30 @@ except ImportError as e:
 
 console = Console()
 
+def find_available_port(start_port: int = 10000, max_attempts: int = 100) -> int:
+    """Find an available port by trying random high ports."""
+    import random
+
+    # Create a list of ports to try (random order to reduce conflicts)
+    ports_to_try = list(range(start_port, start_port + max_attempts))
+    random.shuffle(ports_to_try)
+
+    for port in ports_to_try:
+        try:
+            # Try to bind to the port
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(('', port))
+                s.listen(1)
+                s.close()  # Close immediately after binding
+                return port
+        except OSError:
+            # Port is in use, try next one
+            continue
+
+    # If we can't find an available port, use a very high random port
+    return random.randint(20000, 30000)
+
 @click.group()
 @click.version_option(version="1.0.0")
 def godmode():
@@ -36,17 +61,28 @@ def godmode():
     pass
 
 @godmode.command()
-@click.option('--port', default=8000, help='Port for web server')
+@click.option('--port', default=None, help='Port for web server (auto-assigned if not specified)')
 @click.option('--host', default='0.0.0.0', help='Host to bind to')
 @click.option('--gpu/--no-gpu', default=True, help='Enable GPU acceleration')
 def start(port, host, gpu):
     """🚀 Start the GodMode web interface"""
+
+    # Auto-assign port if not specified
+    if port is None:
+        try:
+            port = find_available_port()
+            console.print(f"[green]🔀 Auto-assigned port: {port}[/green]")
+        except RuntimeError as e:
+            console.print(f"[red]❌ {e}[/red]")
+            return
+
     console.print(Panel(
         f"[bold green]Starting GodMode Web Interface[/bold green]\n\n"
         f"🌐 URL: http://{host}:{port}\n"
         f"🧪 Experiment: http://localhost:{port}/experiment\n"
         f"📊 Demo: http://localhost:{port}/demo\n"
-        f"📖 API: http://localhost:{port}/api/docs",
+        f"📖 API: http://localhost:{port}/api/docs\n\n"
+        f"[dim]💡 Port {port} was auto-assigned to avoid conflicts[/dim]",
         title="🧠 GodMode Server"
     ))
     

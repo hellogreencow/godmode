@@ -6,7 +6,6 @@
     <title>GodMode - Predictive Conversation Intelligence</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -426,61 +425,93 @@
     </div>
 
     <script>
-        const socket = io();
+        let websocket = null;
         const chatMessages = document.getElementById('chat-messages');
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
         let isProcessing = false;
+        const clientId = 'demo_' + Math.random().toString(36).substr(2, 9);
 
-        socket.on('connect', function() {
-            console.log('Connected to GodMode server');
-            addMessage('bot', '🔗 Connected to predictive intelligence engine');
-        });
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/${clientId}`;
 
-        socket.on('disconnect', function() {
-            console.log('Disconnected from server');
-            addMessage('bot', '⚠️ Connection lost - predictions may be limited');
-        });
+            websocket = new WebSocket(wsUrl);
 
-        socket.on('prediction_start', function(data) {
-            showReasoningIndicator('Analyzing your question...', 'Selecting optimal reasoning approach...');
-        });
+            websocket.onopen = function(event) {
+                console.log('Connected to GodMode server');
+                addMessage('bot', '🔗 Connected to predictive intelligence engine');
+            };
 
-        socket.on('reasoning_selected', function(data) {
-            updateReasoningIndicator(data.reasoning_type, data.explanation, data.confidence);
-        });
+            websocket.onclose = function(event) {
+                console.log('Disconnected from server');
+                addMessage('bot', '⚠️ Connection lost - predictions may be limited');
+                // Try to reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
 
-        socket.on('future_questions', function(data) {
-            displayFutureQuestions(data.questions);
-        });
+            websocket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
 
-        socket.on('conversation_branches', function(data) {
-            displayBranches(data.branches);
-        });
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                addMessage('bot', '❌ Connection error - some features may not work');
+            };
+        }
 
-        socket.on('origin_questions', function(data) {
-            displayOriginQuestions(data.questions);
-        });
+        function handleWebSocketMessage(data) {
+            const messageType = data.type;
 
-        socket.on('prediction_complete', function(data) {
-            hideReasoningIndicator();
-            updateConfidence(data.confidence);
-            addMessage('bot', `✅ Prediction complete! Confidence: ${(data.confidence * 100).toFixed(1)}%`);
-        });
-
-        socket.on('response', function(data) {
-            addMessage('bot', data.message);
-        });
+            switch(messageType) {
+                case 'prediction_start':
+                    showReasoningIndicator('Analyzing your question...', 'Selecting optimal reasoning approach...');
+                    break;
+                case 'reasoning_selected':
+                    updateReasoningIndicator(data.reasoning_type, data.explanation, data.confidence);
+                    break;
+                case 'future_questions':
+                    displayFutureQuestions(data.questions);
+                    break;
+                case 'conversation_branches':
+                    displayBranches(data.branches);
+                    break;
+                case 'origin_questions':
+                    displayOriginQuestions(data.questions);
+                    break;
+                case 'prediction_complete':
+                    hideReasoningIndicator();
+                    updateConfidence(data.confidence);
+                    addMessage('bot', `✅ Prediction complete! Confidence: ${(data.confidence * 100).toFixed(1)}%`);
+                    break;
+                case 'response':
+                    addMessage('bot', data.message);
+                    break;
+                case 'error':
+                    addMessage('bot', `❌ Error: ${data.message}`);
+                    break;
+            }
+        }
 
         function sendMessage() {
             const message = messageInput.value.trim();
-            if (message && !isProcessing) {
+            if (message && !isProcessing && websocket && websocket.readyState === WebSocket.OPEN) {
                 isProcessing = true;
                 addMessage('user', message);
-                socket.emit('predict', { question: message, context: [] });
+
+                const payload = {
+                    type: 'predict',
+                    question: message,
+                    context: []
+                };
+
+                websocket.send(JSON.stringify(payload));
                 messageInput.value = '';
                 sendButton.disabled = true;
                 sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            } else if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                addMessage('bot', '❌ Not connected to server. Please refresh the page.');
             }
         }
 
@@ -627,6 +658,9 @@
                 panel.style.display = 'block';
             }
         }
+
+        // Initialize WebSocket connection
+        connectWebSocket();
 
         // Add some initial suggestions
         setTimeout(() => {

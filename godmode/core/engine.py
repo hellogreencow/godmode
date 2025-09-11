@@ -294,7 +294,7 @@ class GodModeEngine:
             
             # Record metrics
             REASONING_DURATION.observe(solving_time)
-            if response.solution:
+            if hasattr(response, 'solution') and response.solution:
                 SOLUTION_QUALITY.observe(response.solution.get_overall_quality())
             
             return response

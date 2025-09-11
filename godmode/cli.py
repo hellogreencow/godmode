@@ -8,6 +8,7 @@ of the GodMode system, including reasoning, memory management, and web interface
 import asyncio
 import json
 import logging
+import socket
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -37,6 +38,31 @@ console = Console()
 # Global instances
 engine: Optional[GodModeEngine] = None
 hierarchical_model: Optional[HierarchicalReasoningModel] = None
+
+
+def find_available_port(start_port: int = 10000, max_attempts: int = 100) -> int:
+    """Find an available port by trying random high ports."""
+    import random
+
+    # Create a list of ports to try (random order to reduce conflicts)
+    ports_to_try = list(range(start_port, start_port + max_attempts))
+    random.shuffle(ports_to_try)
+
+    for port in ports_to_try:
+        try:
+            # Try to bind to the port
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(('', port))
+                s.listen(1)
+                s.close()  # Close immediately after binding
+                return port
+        except OSError:
+            # Port is in use, try next one
+            continue
+
+    # If we can't find an available port, use a very high random port
+    return random.randint(20000, 30000)
 
 
 def init_engine(
@@ -251,15 +277,32 @@ def experiment(
 
 @app.command()
 def web(
-    port: int = typer.Option(8000, help="Port to run the web server on"),
+    port: Optional[int] = typer.Option(None, help="Port to run the web server on (auto-assigned if not specified)"),
     host: str = typer.Option("0.0.0.0", help="Host to bind the server to"),
     reload: bool = typer.Option(False, help="Enable auto-reload for development"),
     debug: bool = typer.Option(False, help="Enable debug mode"),
 ):
     """Launch the web interface."""
-    
-    console.print(Panel("[bold green]🌐 Starting GodMode Web Interface[/bold green]", 
-                       title="Web Server"))
+
+    # Auto-assign port if not specified
+    if port is None:
+        try:
+            port = find_available_port()
+            console.print(f"[green]🔀 Auto-assigned port: {port}[/green]")
+        except RuntimeError as e:
+            console.print(f"[red]❌ {e}[/red]")
+            return
+
+    console.print(Panel(
+        f"[bold green]🌐 Starting GodMode Web Interface[/bold green]\n\n"
+        f"🌐 URL: http://{host}:{port}\n"
+        f"🧪 Experiment: http://localhost:{port}/experiment\n"
+        f"📊 Demo: http://localhost:{port}/demo\n"
+        f"📈 Analytics: http://localhost:{port}/analytics\n"
+        f"📖 API docs: http://localhost:{port}/api/docs\n\n"
+        f"[dim]💡 Port {port} was auto-assigned to avoid conflicts[/dim]",
+        title="Web Server"
+    ))
     
     engine = init_engine(verbose=debug)
     hierarchical_model = init_hierarchical_model(verbose=debug)
@@ -269,12 +312,6 @@ def web(
         hierarchical_model=hierarchical_model,
         debug=debug,
     )
-    
-    console.print(f"🚀 Server starting at http://{host}:{port}")
-    console.print("📊 Experimental page: http://localhost:8000/experiment")
-    console.print("🎮 Interactive demo: http://localhost:8000/demo")
-    console.print("📈 Analytics: http://localhost:8000/analytics")
-    console.print("📖 API docs: http://localhost:8000/api/docs")
     
     try:
         web_app.run(host=host, port=port, reload=reload)

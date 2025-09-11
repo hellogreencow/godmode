@@ -116,7 +116,7 @@ class ReasoningCommand(Command):
     
     # Hierarchical configuration
     cognitive_levels: List[CognitiveLevel] = Field(
-        default_factory=lambda: list(CognitiveLevel),
+        default_factory=lambda: [CognitiveLevel.METACOGNITIVE, CognitiveLevel.EXECUTIVE, CognitiveLevel.OPERATIONAL, CognitiveLevel.REACTIVE],
         description="Cognitive levels to use"
     )
     start_level: CognitiveLevel = CognitiveLevel.METACOGNITIVE

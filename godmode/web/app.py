@@ -160,21 +160,92 @@ class GodModeWebApp:
     async def _handle_websocket_message(self, client_id: str, data: Dict[str, Any]):
         """Handle incoming WebSocket messages."""
         message_type = data.get("type")
-        
-        if message_type == "solve_problem":
+
+        if message_type == "predict":
+            # Handle conversation prediction
+            question = data.get("question", "")
+            context = data.get("context", [])
+
+            # Send initial response
+            await self.websocket_manager.send_personal_message(
+                {"type": "prediction_start", "question": question},
+                client_id
+            )
+
+            try:
+                # Import conversation predictor
+                from godmode.core.conversation_predictor import conversation_predictor
+
+                # Predict conversation
+                result = await conversation_predictor.predict_conversation(
+                    current_question=question,
+                    conversation_context=context
+                )
+
+                # Send reasoning type selection
+                await self.websocket_manager.send_personal_message(
+                    {
+                        "type": "reasoning_selected",
+                        "reasoning_type": result.selected_reasoning_type,
+                        "explanation": result.reasoning_explanation,
+                        "confidence": result.confidence_score
+                    },
+                    client_id
+                )
+
+                # Send future questions
+                await self.websocket_manager.send_personal_message(
+                    {"type": "future_questions", "questions": result.future_questions},
+                    client_id
+                )
+
+                # Send conversation branches
+                await self.websocket_manager.send_personal_message(
+                    {"type": "conversation_branches", "branches": [
+                        {
+                            "branch_id": branch.branch_id,
+                            "reasoning_path": branch.reasoning_path,
+                            "outcome_prediction": branch.outcome_prediction,
+                            "probability": branch.probability
+                        }
+                        for branch in result.alternative_branches
+                    ]},
+                    client_id
+                )
+
+                # Send origin questions
+                await self.websocket_manager.send_personal_message(
+                    {"type": "origin_questions", "questions": result.origin_questions},
+                    client_id
+                )
+
+                # Send completion
+                await self.websocket_manager.send_personal_message(
+                    {"type": "prediction_complete", "confidence": result.confidence_score},
+                    client_id
+                )
+
+            except Exception as e:
+                logger.error(f"Error predicting conversation: {e}")
+                await self.websocket_manager.send_personal_message(
+                    {"type": "error", "message": str(e)},
+                    client_id
+                )
+
+        elif message_type == "solve_problem":
             # Handle real-time problem solving
             problem_text = data.get("problem", "")
-            
+
             # Send initial response
             await self.websocket_manager.send_personal_message(
                 {"type": "reasoning_started", "problem": problem_text},
                 client_id
             )
-            
+
             try:
                 # Solve problem using hierarchical reasoning
                 result = self.hierarchical_model.solve_problem(problem_text)
-                
+
                 # Send solution
                 await self.websocket_manager.send_personal_message(
                     {
@@ -185,7 +256,7 @@ class GodModeWebApp:
                     },
                     client_id
                 )
-                
+
             except Exception as e:
                 logger.error(f"Error solving problem: {e}")
                 await self.websocket_manager.send_personal_message(
