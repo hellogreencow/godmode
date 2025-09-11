@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .visualization-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .viz-panel {
+            height: 500px;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .node {
+            fill: #667eea;
+            stroke: #fff;
+            stroke-width: 2px;
+        }
+        .node:hover {
+            fill: #764ba2;
+        }
+        .link {
+            fill: none;
+            stroke: #999;
+            stroke-width: 2px;
+            stroke-opacity: 0.6;
+        }
+        .cognitive-level {
+            fill: #f8f9fa;
+            stroke: #dee2e6;
+            stroke-width: 1px;
+        }
+        .level-label {
+            font-weight: bold;
+            text-anchor: middle;
+            fill: #495057;
+        }
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .btn-viz {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            color: white;
+        }
+        .btn-viz:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+            color: white;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            align-items: center;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <h4 class="mb-0">🧠 GodMode Visualization</h4>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/demo">Demo</a>
+                <a class="nav-link" href="/experiment">Experiment</a>
+                <a class="nav-link" href="/analytics">Analytics</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row g-4">
+            <!-- Main Visualization Panel -->
+            <div class="col-lg-8">
+                <div class="visualization-container">
+                    <div class="p-3 border-bottom">
+                        <h4 class="mb-0">🔍 Hierarchical Reasoning Visualization</h4>
+                        <small class="text-muted">Interactive cognitive architecture visualization</small>
+                    </div>
+
+                    <div class="p-4">
+                        <div class="viz-panel" id="visualizationPanel">
+                            <!-- D3.js visualization will be rendered here -->
+                        </div>
+
+                        <div class="mt-3">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #667eea;"></span>
+                                <span>Metacognitive Level</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #764ba2;"></span>
+                                <span>Executive Level</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #28a745;"></span>
+                                <span>Operational Level</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #ffc107;"></span>
+                                <span>Reactive Level</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Panel -->
+            <div class="col-lg-4">
+                <div class="control-panel">
+                    <h5 class="mb-4">🎛️ Visualization Controls</h5>
+
+                    <div class="mb-3">
+                        <label for="reasoningType" class="form-label">Reasoning Type</label>
+                        <select class="form-select" id="reasoningType">
+                            <option value="forward">Forward Reasoning</option>
+                            <option value="backward">Backward Reasoning</option>
+                            <option value="bidirectional">Bidirectional</option>
+                            <option value="hierarchical">Hierarchical</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="complexity" class="form-label">Problem Complexity</label>
+                        <input type="range" class="form-range" id="complexity" min="1" max="10" value="5">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Simple</small>
+                            <small class="text-muted">Complex</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Cognitive Levels</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="metacognitive" checked>
+                            <label class="form-check-label" for="metacognitive">
+                                Metacognitive
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="executive" checked>
+                            <label class="form-check-label" for="executive">
+                                Executive
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="operational" checked>
+                            <label class="form-check-label" for="operational">
+                                Operational
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reactive" checked>
+                            <label class="form-check-label" for="reactive">
+                                Reactive
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-viz" id="startVisualization">
+                            ▶️ Start Visualization
+                        </button>
+                        <button class="btn btn-outline-secondary" id="resetVisualization">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Real-time Stats -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h6 class="card-title">📊 Real-time Statistics</h6>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="h4 text-primary" id="activeNodes">0</div>
+                                <small class="text-muted">Active Nodes</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="h4 text-success" id="reasoningSteps">0</div>
+                                <small class="text-muted">Reasoning Steps</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="h4 text-info" id="memoryUsage">0%</div>
+                                <small class="text-muted">Memory Usage</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="h4 text-warning" id="processingTime">0ms</div>
+                                <small class="text-muted">Processing Time</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reasoning Trace Panel -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📝 Reasoning Trace</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="reasoningTrace" class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+                            <div class="text-muted">Click "Start Visualization" to begin reasoning process...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // D3.js Visualization
+        const svg = d3.select("#visualizationPanel")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%");
+
+        const width = document.getElementById('visualizationPanel').clientWidth;
+        const height = 500;
+
+        svg.attr("viewBox", [0, 0, width, height]);
+
+        let nodes = [];
+        let links = [];
+
+        // Create initial cognitive architecture
+        function initializeVisualization() {
+            nodes = [
+                {id: "metacognitive", level: 0, x: width/2, y: 50, color: "#667eea"},
+                {id: "executive", level: 1, x: width/2, y: 150, color: "#764ba2"},
+                {id: "operational", level: 2, x: width/2, y: 250, color: "#28a745"},
+                {id: "reactive", level: 3, x: width/2, y: 350, color: "#ffc107"}
+            ];
+
+            links = [
+                {source: "metacognitive", target: "executive"},
+                {source: "executive", target: "operational"},
+                {source: "operational", target: "reactive"}
+            ];
+
+            updateVisualization();
+        }
+
+        function updateVisualization() {
+            // Clear previous elements
+            svg.selectAll("*").remove();
+
+            // Create links
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(links)
+                .enter().append("line")
+                .attr("class", "link")
+                .attr("x1", d => nodes.find(n => n.id === d.source).x)
+                .attr("y1", d => nodes.find(n => n.id === d.source).y)
+                .attr("x2", d => nodes.find(n => n.id === d.target).x)
+                .attr("y2", d => nodes.find(n => n.id === d.target).y);
+
+            // Create nodes
+            const node = svg.append("g")
+                .selectAll("circle")
+                .data(nodes)
+                .enter().append("circle")
+                .attr("class", "node")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", 25)
+                .style("fill", d => d.color)
+                .call(d3.drag()
+                    .on("start", dragStarted)
+                    .on("drag", dragged)
+                    .on("end", dragEnded));
+
+            // Add labels
+            const labels = svg.append("g")
+                .selectAll("text")
+                .data(nodes)
+                .enter().append("text")
+                .attr("x", d => d.x)
+                .attr("y", d => d.y + 5)
+                .attr("text-anchor", "middle")
+                .style("fill", "white")
+                .style("font-weight", "bold")
+                .style("font-size", "12px")
+                .text(d => d.id.charAt(0).toUpperCase() + d.id.slice(1));
+        }
+
+        // Drag functions
+        function dragStarted(event, d) {
+            d3.select(this).raise().attr("stroke", "black");
+        }
+
+        function dragged(event, d) {
+            d.x = event.x;
+            d.y = event.y;
+            updateVisualization();
+        }
+
+        function dragEnded(event, d) {
+            d3.select(this).attr("stroke", null);
+        }
+
+        // Control handlers
+        document.getElementById('startVisualization').addEventListener('click', function() {
+            initializeVisualization();
+            simulateReasoning();
+            document.getElementById('reasoningTrace').innerHTML = '<div class="text-success">🔄 Starting reasoning process...</div>';
+        });
+
+        document.getElementById('resetVisualization').addEventListener('click', function() {
+            nodes = [];
+            links = [];
+            updateVisualization();
+            document.getElementById('reasoningTrace').innerHTML = '<div class="text-muted">Click "Start Visualization" to begin reasoning process...</div>';
+            updateStats(0, 0, 0, 0);
+        });
+
+        // Simulate reasoning process
+        function simulateReasoning() {
+            const steps = [
+                "Analyzing problem complexity...",
+                "Decomposing goals into sub-tasks...",
+                "Retrieving relevant knowledge...",
+                "Applying reasoning strategies...",
+                "Evaluating solution quality...",
+                "Refining approach...",
+                "Finalizing solution..."
+            ];
+
+            let stepIndex = 0;
+            const interval = setInterval(() => {
+                if (stepIndex < steps.length) {
+                    const traceDiv = document.getElementById('reasoningTrace');
+                    traceDiv.innerHTML += `<div class="mb-2">📍 ${steps[stepIndex]}</div>`;
+                    traceDiv.scrollTop = traceDiv.scrollHeight;
+
+                    // Update stats
+                    updateStats(stepIndex + 1, stepIndex + 1, Math.floor(Math.random() * 40) + 60, Math.floor(Math.random() * 500) + 100);
+
+                    stepIndex++;
+                } else {
+                    clearInterval(interval);
+                    document.getElementById('reasoningTrace').innerHTML += '<div class="text-success mt-2">✅ Reasoning process complete!</div>';
+                }
+            }, 800);
+        }
+
+        function updateStats(nodes, steps, memory, time) {
+            document.getElementById('activeNodes').textContent = nodes;
+            document.getElementById('reasoningSteps').textContent = steps;
+            document.getElementById('memoryUsage').textContent = memory + '%';
+            document.getElementById('processingTime').textContent = time + 'ms';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVisualization();
+        });
+    </script>
+</body>
+</html>

@@ -133,7 +133,17 @@ class GodModeWebApp:
                 "request": request,
                 "title": "Performance Analytics",
             })
-    
+
+        @app.get("/system", response_class=HTMLResponse)
+        async def system_analysis_page(request: Request):
+            """System analysis and optimization page."""
+            system_report = self.engine.get_system_report()
+            return templates.TemplateResponse("system.html", {
+                "request": request,
+                "title": "System Analysis",
+                "system_report": system_report,
+            })
+
     def _add_websocket_routes(self, app: FastAPI):
         """Add WebSocket routes for real-time communication."""
         

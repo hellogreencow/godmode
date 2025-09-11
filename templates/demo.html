@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            max-width: 70%;
+        }
+        .message.user {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            margin-left: auto;
+        }
+        .message.assistant {
+            background: white;
+            border: 1px solid #e9ecef;
+        }
+        .input-group {
+            border-top: 1px solid #e9ecef;
+        }
+        .btn-send {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 0 25px 25px 0;
+        }
+        .reasoning-panel {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .reasoning-step {
+            padding: 15px;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        .reasoning-step:last-child {
+            border-bottom: none;
+        }
+        .step-indicator {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <h4 class="mb-0">🧠 GodMode Demo</h4>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/experiment">Experiment</a>
+                <a class="nav-link" href="/analytics">Analytics</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="demo-container">
+            <div class="row g-4">
+                <!-- Main Chat Interface -->
+                <div class="col-lg-8">
+                    <div class="chat-container">
+                        <div class="p-3 border-bottom">
+                            <h4 class="mb-0">🤖 Interactive Reasoning Demo</h4>
+                            <small class="text-muted">Ask GodMode to solve problems using hierarchical reasoning</small>
+                        </div>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="message assistant">
+                                <strong>GodMode:</strong> Hello! I'm ready to help you solve complex problems using advanced hierarchical reasoning. Try asking me something like "How should a company approach digital transformation?" or "What are the key factors for successful AI implementation?"
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg border-0"
+                                   placeholder="Ask me to solve a problem..."
+                                   id="messageInput">
+                            <button class="btn btn-send px-4" id="sendButton">
+                                <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reasoning Process Panel -->
+                <div class="col-lg-4">
+                    <div class="reasoning-panel">
+                        <div class="p-3 border-bottom">
+                            <h5 class="mb-0">🔍 Reasoning Process</h5>
+                            <small class="text-muted">Live reasoning steps</small>
+                        </div>
+
+                        <div id="reasoningSteps">
+                            <div class="reasoning-step">
+                                <div class="d-flex align-items-start">
+                                    <span class="step-indicator">1</span>
+                                    <div>
+                                        <strong>Metacognitive Analysis</strong>
+                                        <p class="mb-1 text-muted">Evaluating problem complexity and selecting reasoning strategy</p>
+                                        <small class="text-success">✓ Complete</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="reasoning-step">
+                                <div class="d-flex align-items-start">
+                                    <span class="step-indicator">2</span>
+                                    <div>
+                                        <strong>Goal Decomposition</strong>
+                                        <p class="mb-1 text-muted">Breaking down the problem into manageable sub-goals</p>
+                                        <small class="text-warning">⏳ Processing</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="reasoning-step">
+                                <div class="d-flex align-items-start">
+                                    <span class="step-indicator">3</span>
+                                    <div>
+                                        <strong>Knowledge Retrieval</strong>
+                                        <p class="mb-1 text-muted">Searching memory systems for relevant information</p>
+                                        <small class="text-muted">Pending</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="reasoning-step">
+                                <div class="d-flex align-items-start">
+                                    <span class="step-indicator">4</span>
+                                    <div>
+                                        <strong>Solution Synthesis</strong>
+                                        <p class="mb-1 text-muted">Combining information into coherent solution</p>
+                                        <small class="text-muted">Pending</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="reasoning-step">
+                                <div class="d-flex align-items-start">
+                                    <span class="step-indicator">5</span>
+                                    <div>
+                                        <strong>Validation & Refinement</strong>
+                                        <p class="mb-1 text-muted">Evaluating and improving the proposed solution</p>
+                                        <small class="text-muted">Pending</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Demo Buttons -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">🚀 Quick Demo Examples</h5>
+                            <p class="card-text">Try these pre-built examples to see GodMode in action:</p>
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-primary w-100 demo-btn"
+                                            data-query="How should a startup approach product development?">
+                                        Startup Strategy
+                                    </button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-primary w-100 demo-btn"
+                                            data-query="What are the key challenges in implementing AI systems?">
+                                        AI Implementation
+                                    </button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-primary w-100 demo-btn"
+                                            data-query="How to design a scalable microservices architecture?">
+                                        System Architecture
+                                    </button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-primary w-100 demo-btn"
+                                            data-query="What are the best practices for team leadership?">
+                                        Leadership Strategy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Demo functionality - placeholder for actual WebSocket integration
+        document.getElementById('sendButton').addEventListener('click', function() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (message) {
+                addMessage('user', message);
+                input.value = '';
+
+                // Simulate AI response
+                setTimeout(() => {
+                    addMessage('assistant', `I received your query: "${message}". This demo shows how GodMode would process complex reasoning tasks using hierarchical cognitive architectures. In a full implementation, I would analyze this problem across multiple cognitive levels and provide a comprehensive solution.`);
+                }, 1000);
+            }
+        });
+
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('sendButton').click();
+            }
+        });
+
+        // Demo buttons
+        document.querySelectorAll('.demo-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const query = this.getAttribute('data-query');
+                document.getElementById('messageInput').value = query;
+                document.getElementById('sendButton').click();
+            });
+        });
+
+        function addMessage(type, content) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `<strong>${type === 'user' ? 'You' : 'GodMode'}:</strong> ${content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

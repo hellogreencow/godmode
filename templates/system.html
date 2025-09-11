@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .system-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border: none;
+            transition: transform 0.3s ease;
+        }
+        .system-card:hover {
+            transform: translateY(-5px);
+        }
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: white;
+            margin: 0 auto;
+        }
+        .score-high { background: linear-gradient(45deg, #28a745, #20c997); }
+        .score-medium { background: linear-gradient(45deg, #ffc107, #fd7e14); }
+        .score-low { background: linear-gradient(45deg, #dc3545, #e83e8c); }
+        .spec-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .metric-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .metric-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 1s ease;
+        }
+        .optimization-badge {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        .recommendation-card {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .gpu-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .gpu-active { background: #28a745; }
+        .gpu-inactive { background: #6c757d; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <h4 class="mb-0">🖥️ GodMode System Analysis</h4>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/demo">Demo</a>
+                <a class="nav-link" href="/experiment">Experiment</a>
+                <a class="nav-link" href="/analytics">Analytics</a>
+                <a class="nav-link" href="/visualization">Visualization</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row g-4">
+            <!-- System Overview -->
+            <div class="col-lg-8">
+                <div class="system-card">
+                    <div class="card-body">
+                        <h4 class="card-title">🖥️ System Overview</h4>
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <h5>Hardware Specifications</h5>
+                                {% if system_report.hardware_capabilities %}
+                                <div class="spec-item">
+                                    <strong>System Type:</strong> {{ system_report.hardware_capabilities.system_type | replace('_', ' ') | title }}
+                                </div>
+                                <div class="spec-item">
+                                    <strong>CPU Cores:</strong> {{ system_report.hardware_capabilities.cpu_cores }}
+                                    <span class="optimization-badge">Optimized</span>
+                                </div>
+                                <div class="spec-item">
+                                    <strong>Memory:</strong> {{ system_report.hardware_capabilities.memory_gb }} GB
+                                </div>
+                                <div class="spec-item">
+                                    <strong>GPU:</strong>
+                                    <span class="gpu-indicator gpu-{% if system_report.hardware_capabilities.gpu_type != 'cpu_only' %}active{% else %}inactive{% endif %}"></span>
+                                    {{ system_report.hardware_capabilities.gpu_type | replace('_', ' ') | title }}
+                                    {% if system_report.hardware_capabilities.gpu_memory_gb %}
+                                    ({{ system_report.hardware_capabilities.gpu_memory_gb }} GB)
+                                    {% endif %}
+                                </div>
+                                <div class="spec-item">
+                                    <strong>Storage:</strong> {{ system_report.hardware_capabilities.storage_gb }} GB
+                                </div>
+                                {% if system_report.hardware_capabilities.is_laptop %}
+                                <div class="spec-item">
+                                    <strong>Form Factor:</strong> Laptop
+                                    {% if system_report.hardware_capabilities.battery_powered %}
+                                    <span class="text-warning">(Battery Powered)</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <div class="alert alert-warning">
+                                    System analysis not available. Please restart with auto_optimize=True.
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Performance Scores</h5>
+                                {% if system_report.hardware_capabilities and system_report.hardware_capabilities.performance_scores %}
+                                <div class="text-center mb-3">
+                                    <div class="score-circle score-{% if system_report.hardware_capabilities.performance_scores.overall >= 80 %}high{% elif system_report.hardware_capabilities.performance_scores.overall >= 60 %}medium{% else %}low{% endif %}">
+                                        {{ system_report.hardware_capabilities.performance_scores.overall }}
+                                    </div>
+                                    <p class="mt-2">Overall Score</p>
+                                </div>
+
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>CPU Performance</span>
+                                        <span>{{ system_report.hardware_capabilities.performance_scores.cpu }}%</span>
+                                    </div>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: {{ system_report.hardware_capabilities.performance_scores.cpu }}%; background: linear-gradient(45deg, #667eea, #764ba2);"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Memory Performance</span>
+                                        <span>{{ system_report.hardware_capabilities.performance_scores.memory }}%</span>
+                                    </div>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: {{ system_report.hardware_capabilities.performance_scores.memory }}%; background: linear-gradient(45deg, #28a745, #20c997);"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>GPU Performance</span>
+                                        <span>{{ system_report.hardware_capabilities.performance_scores.gpu }}%</span>
+                                    </div>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: {{ system_report.hardware_capabilities.performance_scores.gpu }}%; background: linear-gradient(45deg, #ffc107, #fd7e14);"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Storage Performance</span>
+                                        <span>{{ system_report.hardware_capabilities.performance_scores.storage }}%</span>
+                                    </div>
+                                    <div class="metric-bar">
+                                        <div class="metric-fill" style="width: {{ system_report.hardware_capabilities.performance_scores.storage }}%; background: linear-gradient(45deg, #dc3545, #e83e8c);"></div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Profile -->
+            <div class="col-lg-4">
+                <div class="system-card">
+                    <div class="card-body">
+                        <h5 class="card-title">⚙️ Optimization Profile</h5>
+                        {% if system_report.optimization_profile %}
+                        <div class="mt-3">
+                            <h6>🧠 Memory Management</h6>
+                            <small class="text-muted d-block">Working Memory Items: {{ system_report.optimization_profile.memory_management.max_working_memory_items }}</small>
+                            <small class="text-muted d-block">Memory Chunk Size: {{ system_report.optimization_profile.memory_management.memory_chunk_size }}</small>
+                            <small class="text-muted d-block">Compression: {{ 'Enabled' if system_report.optimization_profile.memory_management.enable_memory_compression else 'Disabled' }}</small>
+
+                            <hr>
+
+                            <h6>⚡ Processing</h6>
+                            <small class="text-muted d-block">Parallel Processing: {{ 'Enabled' if system_report.optimization_profile.processing.enable_parallel_processing else 'Disabled' }}</small>
+                            <small class="text-muted d-block">Max Concurrent Tasks: {{ system_report.optimization_profile.processing.max_concurrent_tasks }}</small>
+                            <small class="text-muted d-block">GPU Acceleration: {{ 'Enabled' if system_report.optimization_profile.processing.use_gpu_acceleration else 'Disabled' }}</small>
+
+                            <hr>
+
+                            <h6>🤖 Model Settings</h6>
+                            <small class="text-muted d-block">Preferred Model Size: {{ system_report.optimization_profile.model_settings.preferred_model_size | title }}</small>
+                            <small class="text-muted d-block">Model Caching: {{ 'Enabled' if system_report.optimization_profile.model_settings.enable_model_caching else 'Disabled' }}</small>
+                            <small class="text-muted d-block">Batch Size: {{ system_report.optimization_profile.model_settings.batch_size }}</small>
+
+                            <hr>
+
+                            <h6>🎯 Reasoning</h6>
+                            <small class="text-muted d-block">Max Reasoning Depth: {{ system_report.optimization_profile.reasoning.max_reasoning_depth }}</small>
+                            <small class="text-muted d-block">Complex Reasoning: {{ 'Enabled' if system_report.optimization_profile.reasoning.enable_complex_reasoning else 'Disabled' }}</small>
+                            <small class="text-muted d-block">Attention Mechanism: {{ system_report.optimization_profile.reasoning.attention_mechanism | replace('_', ' ') | title }}</small>
+
+                            <hr>
+
+                            <h6>📊 Monitoring</h6>
+                            <small class="text-muted d-block">Performance Monitoring: {{ 'Enabled' if system_report.optimization_profile.monitoring.enable_performance_monitoring else 'Disabled' }}</small>
+                            <small class="text-muted d-block">Monitoring Interval: {{ system_report.optimization_profile.monitoring.monitoring_interval }}s</small>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            Optimization profile not available. System will use default settings.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        {% if system_report.recommendations %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="system-card">
+                    <div class="card-body">
+                        <h5 class="card-title">💡 System Recommendations</h5>
+                        <div class="mt-3">
+                            {% for recommendation in system_report.recommendations %}
+                            <div class="recommendation-card">
+                                <strong>{{ recommendation }}</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Raw System Data -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="system-card">
+                    <div class="card-body">
+                        <h5 class="card-title">📋 Raw System Data</h5>
+                        <button class="btn btn-outline-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#rawData">
+                            Show/Hide Raw Data
+                        </button>
+                        <div class="collapse" id="rawData">
+                            <pre class="bg-light p-3 rounded"><code>{{ system_report | tojson(indent=2) }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center py-4 text-muted">
+        <div class="container">
+            <p>&copy; 2024 GodMode AI System - System Analysis Module</p>
+            <small>Auto-optimized for your hardware configuration</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Animate metric bars on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const metricBars = document.querySelectorAll('.metric-fill');
+            metricBars.forEach((bar, index) => {
+                setTimeout(() => {
+                    bar.style.width = bar.style.width; // Trigger animation
+                }, index * 200);
+            });
+        });
+    </script>
+</body>
+</html>

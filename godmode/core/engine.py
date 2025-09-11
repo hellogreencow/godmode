@@ -35,6 +35,7 @@ from godmode.core.reasoning.forward import ForwardReasoningEngine
 from godmode.core.reasoning.backward import BackwardReasoningEngine
 from godmode.core.reasoning.cognitive_moves import CognitiveMoveEngine
 from godmode.core.validation import ValidationEngine
+from godmode.core.system_analyzer import system_analyzer, HardwareCapabilities, OptimizationProfile
 
 
 # Prometheus metrics
@@ -62,27 +63,56 @@ class GodModeEngine:
         max_parallel_branches: int = 4,
         enable_gpu: bool = True,
         model_config: Optional[Dict[str, Any]] = None,
+        auto_optimize: bool = True,
     ):
         """
-        Initialize the GodMode reasoning engine.
-        
+        Initialize the GodMode reasoning engine with system-aware optimization.
+
         Args:
             memory_size: Size of the cognitive memory system
             reasoning_depth: Maximum depth for hierarchical reasoning
             max_parallel_branches: Maximum parallel reasoning branches
             enable_gpu: Whether to use GPU acceleration
             model_config: Configuration for neural models
+            auto_optimize: Whether to automatically optimize based on system capabilities
         """
+        # System analysis and optimization
+        self.auto_optimize = auto_optimize
+        self.capabilities: Optional[HardwareCapabilities] = None
+        self.optimization_profile: Optional[OptimizationProfile] = None
+
+        if auto_optimize:
+            logger.info("🔧 Performing system analysis and optimization...")
+            self.capabilities = system_analyzer.analyze_system()
+            self.optimization_profile = system_analyzer.generate_optimization_profile()
+
+            # Apply system-optimized settings
+            memory_size = self.optimization_profile.max_working_memory_items * 1000
+            reasoning_depth = self.optimization_profile.max_reasoning_depth
+            max_parallel_branches = self.optimization_profile.max_concurrent_tasks
+            enable_gpu = self.optimization_profile.use_gpu_acceleration
+
+            logger.info(f"✅ System optimization applied - Memory: {memory_size}, Depth: {reasoning_depth}")
+
         self.memory_size = memory_size
         self.reasoning_depth = reasoning_depth
         self.max_parallel_branches = max_parallel_branches
-        self.enable_gpu = enable_gpu and torch.cuda.is_available()
+        self.enable_gpu = enable_gpu and (torch.cuda.is_available() or torch.backends.mps.is_available())
         self.model_config = model_config or {}
-        
+
+        # Apply optimization profile settings
+        if self.optimization_profile:
+            self.model_config.update({
+                'preferred_model_size': self.optimization_profile.preferred_model_size,
+                'enable_model_caching': self.optimization_profile.enable_model_caching,
+                'batch_size': self.optimization_profile.batch_size,
+                'attention_mechanism': self.optimization_profile.attention_mechanism,
+            })
+
         # Core components
         self.memory = CognitiveMemory(capacity=memory_size)
         self.validation_engine = ValidationEngine()
-        
+
         # Reasoning engines for different strategies
         self.forward_engine = ForwardReasoningEngine(
             memory=self.memory,
@@ -98,11 +128,11 @@ class GodModeEngine:
             memory=self.memory,
             use_gpu=self.enable_gpu
         )
-        
+
         # Active reasoning sessions
         self._active_sessions: Dict[UUID, Dict[str, Any]] = {}
         self._session_lock = asyncio.Lock()
-        
+
         # Performance tracking
         self._stats = {
             'total_problems_solved': 0,
@@ -110,13 +140,90 @@ class GodModeEngine:
             'success_rate': 0.0,
             'quality_scores': [],
         }
-        
-        # Device setup
-        self.device = torch.device('cuda' if self.enable_gpu else 'cpu')
-        
-        logger.info(f"GodModeEngine initialized with device: {self.device}")
-        logger.info(f"Memory capacity: {memory_size}, Reasoning depth: {reasoning_depth}")
-    
+
+        # Device setup based on capabilities
+        if self.enable_gpu:
+            if torch.cuda.is_available():
+                self.device = torch.device('cuda')
+            elif torch.backends.mps.is_available():
+                self.device = torch.device('mps')
+            else:
+                self.device = torch.device('cpu')
+        else:
+            self.device = torch.device('cpu')
+
+        # Performance monitoring
+        if self.optimization_profile and self.optimization_profile.enable_performance_monitoring:
+            self._monitoring_interval = self.optimization_profile.monitoring_interval
+            self._start_performance_monitoring()
+        else:
+            self._monitoring_interval = 2.0
+
+        logger.info(f"🎯 GodModeEngine initialized with device: {self.device}")
+        logger.info(f"💾 Memory capacity: {memory_size}, Reasoning depth: {reasoning_depth}")
+        logger.info(f"🔥 Parallel branches: {max_parallel_branches}, GPU: {self.enable_gpu}")
+
+        if self.capabilities:
+            logger.info(f"📊 System score: {self.capabilities.overall_score}/100")
+
+    def _start_performance_monitoring(self):
+        """Start performance monitoring based on system capabilities."""
+        if not self.optimization_profile or not self.optimization_profile.enable_performance_monitoring:
+            return
+
+        import threading
+        import psutil
+
+        def monitor_performance():
+            while True:
+                try:
+                    # CPU and memory usage
+                    cpu_percent = psutil.cpu_percent(interval=1)
+                    memory = psutil.virtual_memory()
+                    memory_percent = memory.percent
+
+                    # GPU usage if available
+                    gpu_percent = 0.0
+                    if self.enable_gpu:
+                        try:
+                            if torch.cuda.is_available():
+                                gpu_percent = torch.cuda.utilization()
+                            elif torch.backends.mps.is_available():
+                                # MPS doesn't have direct utilization API, use CPU proxy
+                                gpu_percent = min(cpu_percent * 0.8, 100.0)
+                        except:
+                            gpu_percent = 0.0
+
+                    # Update Prometheus metrics
+                    ACTIVE_REASONING_SESSIONS.set(len(self._active_sessions))
+
+                    # Log performance warnings
+                    if cpu_percent > 90:
+                        logger.warning(f"⚠️ High CPU usage: {cpu_percent}%")
+                    if memory_percent > 90:
+                        logger.warning(f"⚠️ High memory usage: {memory_percent}%")
+                    if gpu_percent > 90 and self.enable_gpu:
+                        logger.warning(f"⚠️ High GPU usage: {gpu_percent}%")
+
+                except Exception as e:
+                    logger.debug(f"Performance monitoring error: {e}")
+
+                time.sleep(self._monitoring_interval)
+
+        # Start monitoring in background thread
+        monitor_thread = threading.Thread(target=monitor_performance, daemon=True)
+        monitor_thread.start()
+        logger.info("📊 Performance monitoring started")
+
+    def get_system_report(self) -> Dict[str, Any]:
+        """Get comprehensive system and performance report."""
+        if self.capabilities and self.optimization_profile:
+            return system_analyzer.get_system_report()
+        else:
+            return {
+                'error': 'System analysis not available. Initialize with auto_optimize=True'
+            }
+
     async def solve_problem(
         self,
         problem: Union[Problem, str, Dict[str, Any]],
