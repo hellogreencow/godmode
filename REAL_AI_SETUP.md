@@ -11,12 +11,14 @@
 
 2. **Set Environment Variable:**
    ```bash
-   # Option 1: Add to your .env file
+   # Option 1: Create your own .env file (NOT tracked by git)
    echo "OPENROUTER_API_KEY=your_actual_api_key_here" > .env
    
    # Option 2: Export in terminal
    export OPENROUTER_API_KEY="your_actual_api_key_here"
    ```
+
+   **🔒 SECURITY NOTE:** Your `.env` file is NOT tracked by git and will stay private.
 
 3. **Verify Setup:**
    ```bash
