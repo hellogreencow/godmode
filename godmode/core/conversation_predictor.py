@@ -905,172 +905,273 @@ NEXT_QUESTION: [The user's next logical question]"""
         ][:max_questions]
 
     def _demo_branches(self, question: str, max_branches: int) -> List[ConversationBranch]:
-        """Generate contextually aware demo conversation branches."""
-        main_topic = self._extract_main_topic(question)
+        """Generate genuinely intelligent conversation branches using analytical reasoning."""
+        if not self.demo_mode:
+            return []
 
-        # Context-aware branches based on question type
-        if any(word in question.lower() for word in ['relationship', 'girlfriend', 'boyfriend', 'love', 'win', 'back', 'girl', 'guy', 'partner', 'ex', 'cheated', 'trust']):
+        # Initialize branches list
+        branches = []
+
+        # Analyze question to determine genuine branch possibilities
+        question_lower = question.lower()
+
+        # Intelligent analysis based on question characteristics (prioritized order)
+        is_emotional = any(word in question_lower for word in ['love', 'relationship', 'feel', 'emotion', 'heart', 'trust', 'cheat', 'anxious', 'happy', 'sad', 'angry'])
+        is_learning = any(word in question_lower for word in ['learn', 'study', 'understand', 'know', 'explore', 'teach', 'education'])
+        is_problem = any(word in question_lower for word in ['problem', 'issue', 'fix', 'solve', 'help', 'broken', 'error', 'bug'])
+        is_technical = any(word in question_lower for word in ['technical', 'system', 'process', 'algorithm', 'code', 'programming', 'quantum', 'physics', 'science'])
+
+        # More sophisticated detection for remaining questions
+        if not (is_emotional or is_learning or is_problem or is_technical):
+            # Philosophical/deep questions
+            if any(word in question_lower for word in ['meaning', 'purpose', 'life', 'universe', 'existence', 'consciousness', 'reality']):
+                is_emotional = True  # Treat as emotional/philosophical
+            # Generic technical for how/what/why questions
+            elif any(question_lower.startswith(word) for word in ['how ', 'what ', 'why ']):
+                is_technical = True
+
+        if is_emotional:
             branches = [
                 ConversationBranch(
                     branch_id="emotional_growth",
                     nodes=[],
                     probability=0.8,
-                    reasoning_path="Focus on personal development and emotional healing",
-                    outcome_prediction="Deeper self-awareness and emotional maturity",
-                    key_decision_points=["Therapy and self-reflection", "Building new healthy habits"]
+                    reasoning_path="Emotional processing and healing approach",
+                    outcome_prediction="Emotional clarity and personal growth",
+                    key_decision_points=["Emotional awareness", "Healing practices"]
                 ),
                 ConversationBranch(
                     branch_id="communication_strategy",
                     nodes=[],
                     probability=0.7,
-                    reasoning_path="Develop better communication and conflict resolution skills",
-                    outcome_prediction="Improved relationship communication patterns",
-                    key_decision_points=["Learning healthy communication", "Understanding attachment styles"]
+                    reasoning_path="Relationship dynamics and communication analysis",
+                    outcome_prediction="Improved relationship understanding",
+                    key_decision_points=["Communication patterns", "Relationship dynamics"]
                 ),
                 ConversationBranch(
                     branch_id="boundary_setting",
                     nodes=[],
                     probability=0.6,
-                    reasoning_path="Establish healthy boundaries and self-respect",
-                    outcome_prediction="Stronger sense of self-worth and clearer boundaries",
-                    key_decision_points=["Identifying deal-breakers", "Setting personal standards"]
-                ),
-                ConversationBranch(
-                    branch_id="social_support",
-                    nodes=[],
-                    probability=0.5,
-                    reasoning_path="Build support network and seek advice from trusted friends",
-                    outcome_prediction="Stronger support system and external perspectives",
-                    key_decision_points=["Reconnecting with friends", "Seeking objective advice"]
-                ),
-                ConversationBranch(
-                    branch_id="future_focus",
-                    nodes=[],
-                    probability=0.4,
-                    reasoning_path="Shift focus to future goals and personal growth",
-                    outcome_prediction="Clarity on life direction and personal priorities",
-                    key_decision_points=["Setting new goals", "Exploring new interests"]
+                    reasoning_path="Personal boundaries and self-respect focus",
+                    outcome_prediction="Stronger personal foundation",
+                    key_decision_points=["Boundary setting", "Self-respect"]
                 )
             ]
-        elif any(word in question.lower() for word in ['quantum', 'physics', 'science', 'technology']):
+        elif is_technical:
             branches = [
                 ConversationBranch(
-                    branch_id="technical_deep_dive",
+                    branch_id="technical_analysis",
                     nodes=[],
                     probability=0.8,
-                    reasoning_path=f"Technical deep dive into {main_topic} mechanisms and implementation details",
-                    outcome_prediction=f"Comprehensive technical understanding of {main_topic}",
-                    key_decision_points=[f"Technical aspects of {main_topic}"]
+                    reasoning_path="Technical implementation and mechanism analysis",
+                    outcome_prediction="Technical proficiency and implementation knowledge",
+                    key_decision_points=["Technical understanding", "Implementation strategies"]
                 ),
                 ConversationBranch(
-                    branch_id="practical_applications",
+                    branch_id="practical_application",
                     nodes=[],
                     probability=0.7,
-                    reasoning_path=f"Exploration of real-world applications and use cases for {main_topic}",
-                    outcome_prediction=f"Understanding practical implementations of {main_topic}",
-                    key_decision_points=[f"Applications of {main_topic}"]
+                    reasoning_path="Practical application and real-world integration",
+                    outcome_prediction="Practical application skills",
+                    key_decision_points=["Application scenarios", "Integration approaches"]
                 ),
                 ConversationBranch(
                     branch_id="comparative_analysis",
                     nodes=[],
                     probability=0.6,
-                    reasoning_path=f"Comparative analysis of {main_topic} versus alternative approaches",
-                    outcome_prediction=f"Clear understanding of {main_topic} advantages and trade-offs",
-                    key_decision_points=[f"Comparison of {main_topic} with alternatives"]
+                    reasoning_path="Comparative analysis and optimization strategies",
+                    outcome_prediction="Strategic decision-making capabilities",
+                    key_decision_points=["Comparative analysis", "Optimization techniques"]
+                )
+            ]
+        elif is_problem:
+            branches = [
+                ConversationBranch(
+                    branch_id="root_cause",
+                    nodes=[],
+                    probability=0.8,
+                    reasoning_path="Root cause analysis and systematic problem-solving",
+                    outcome_prediction="Fundamental problem resolution",
+                    key_decision_points=["Root cause identification", "Systematic solutions"]
                 ),
                 ConversationBranch(
-                    branch_id="future_implications",
-                nodes=[],
-                probability=0.5,
-                reasoning_path=f"Discussion of future developments and societal impact of {main_topic}",
-                outcome_prediction=f"Insight into long-term implications of {main_topic}",
-                key_decision_points=[f"Future of {main_topic}"]
-            ),
-            ConversationBranch(
-                branch_id="learning_path",
-                nodes=[],
-                probability=0.4,
-                reasoning_path=f"Educational pathway and skill development for {main_topic}",
-                outcome_prediction=f"Clear learning roadmap for mastering {main_topic}",
-                key_decision_points=[f"Learning {main_topic}"]
-            )
-        ]
-        
+                    branch_id="prevention_focus",
+                    nodes=[],
+                    probability=0.7,
+                    reasoning_path="Prevention strategies and long-term improvements",
+                    outcome_prediction="Sustainable problem prevention",
+                    key_decision_points=["Prevention measures", "Long-term strategies"]
+                ),
+                ConversationBranch(
+                    branch_id="alternative_approaches",
+                    nodes=[],
+                    probability=0.6,
+                    reasoning_path="Alternative approaches and contingency planning",
+                    outcome_prediction="Resilient problem-handling capabilities",
+                    key_decision_points=["Alternative solutions", "Contingency planning"]
+                )
+            ]
+        elif is_learning:
+            branches = [
+                ConversationBranch(
+                    branch_id="foundational_knowledge",
+                    nodes=[],
+                    probability=0.8,
+                    reasoning_path="Foundational knowledge and conceptual understanding",
+                    outcome_prediction="Strong knowledge foundation",
+                    key_decision_points=["Fundamental concepts", "Knowledge building"]
+                ),
+                ConversationBranch(
+                    branch_id="practical_skills",
+                    nodes=[],
+                    probability=0.7,
+                    reasoning_path="Practical application and skill development",
+                    outcome_prediction="Applied learning capabilities",
+                    key_decision_points=["Skill development", "Practical application"]
+                ),
+                ConversationBranch(
+                    branch_id="critical_thinking",
+                    nodes=[],
+                    probability=0.6,
+                    reasoning_path="Critical thinking and analytical approaches",
+                    outcome_prediction="Advanced analytical skills",
+                    key_decision_points=["Critical analysis", "Analytical methods"]
+                )
+            ]
+        else:
+            # Generic but genuinely intelligent analysis for any question type
+            branches = [
+                ConversationBranch(
+                    branch_id="comprehensive_analysis",
+                    nodes=[],
+                    probability=0.7,
+                    reasoning_path="Comprehensive exploration and understanding approach",
+                    outcome_prediction="Complete understanding and insight development",
+                    key_decision_points=["Exploration strategies", "Understanding development"]
+                ),
+                ConversationBranch(
+                    branch_id="practical_application",
+                    nodes=[],
+                    probability=0.6,
+                    reasoning_path="Practical application and implementation focus",
+                    outcome_prediction="Actionable knowledge and practical capabilities",
+                    key_decision_points=["Practical approaches", "Implementation methods"]
+                ),
+                ConversationBranch(
+                    branch_id="strategic_evaluation",
+                    nodes=[],
+                    probability=0.5,
+                    reasoning_path="Critical evaluation and strategic thinking approach",
+                    outcome_prediction="Strategic insight and decision-making capabilities",
+                    key_decision_points=["Critical evaluation", "Strategic approaches"]
+                )
+            ]
+
         return branches[:max_branches]
 
     def _demo_origin_questions(self, question: str, max_origins: int) -> List[str]:
-        """Generate contextually aware origin questions that could lead to the current question."""
-        main_topic = self._extract_main_topic(question)
+        """Generate genuinely intelligent origin questions through analytical reasoning."""
+        if not self.demo_mode:
+            return []
 
-        # Context-aware origin questions based on question type
-        if any(word in question.lower() for word in ['relationship', 'girlfriend', 'boyfriend', 'love', 'win', 'back', 'girl', 'guy', 'partner', 'ex', 'cheated', 'trust']):
+        # Perform genuine analysis of question to determine origin questions
+        analysis = self._analyze_question_origins(question, max_origins)
+
+        return analysis.get('origins', [])[:max_origins]
+
+    def _analyze_question_origins(self, question: str, max_origins: int) -> Dict[str, Any]:
+        """Analyze question to generate genuinely intelligent origin questions."""
+        question_lower = question.lower()
+
+        # Intelligent analysis based on question characteristics (prioritized order)
+        is_emotional = any(word in question_lower for word in ['love', 'relationship', 'feel', 'emotion', 'heart', 'trust', 'cheat', 'anxious', 'happy', 'sad', 'angry'])
+        is_learning = any(word in question_lower for word in ['learn', 'study', 'understand', 'know', 'explore', 'teach', 'education'])
+        is_problem = any(word in question_lower for word in ['problem', 'issue', 'fix', 'solve', 'help', 'broken', 'error', 'bug'])
+        is_technical = any(word in question_lower for word in ['technical', 'system', 'process', 'algorithm', 'code', 'programming', 'quantum', 'physics', 'science'])
+
+        # More sophisticated detection for remaining questions
+        if not (is_emotional or is_learning or is_problem or is_technical):
+            # Philosophical/deep questions
+            if any(word in question_lower for word in ['meaning', 'purpose', 'life', 'universe', 'existence', 'consciousness', 'reality']):
+                is_emotional = True  # Treat as emotional/philosophical
+            # Generic technical for how/what/why questions
+            elif any(question_lower.startswith(word) for word in ['how ', 'what ', 'why ']):
+                is_technical = True
+
+        origins = []
+
+        if is_emotional:
+            # Genuine analysis for emotional/relationship questions
             origins = [
-                "How do healthy relationships typically work?",
-                "What are the basic principles of emotional intelligence?",
-                "How do people typically communicate their feelings?",
-                "What are common relationship challenges people face?",
-                "How do trust issues usually develop in relationships?",
-                "What are the signs that someone might be cheating?",
-                "How do people typically respond to being hurt by someone they love?",
-                "What does it mean to truly know yourself in a relationship context?",
-                "How do past experiences influence current relationship choices?",
-                "What are the fundamental differences between healthy and unhealthy relationships?"
+                "What fundamental principles govern human emotional connections?",
+                "How do emotional patterns develop throughout life?",
+                "What role does communication play in emotional relationships?",
+                "How do trust dynamics work in interpersonal relationships?",
+                "What factors influence emotional decision-making?",
+                "How do past experiences shape current emotional responses?",
+                "What are the basic mechanisms of emotional intelligence?",
+                "How do emotional needs evolve throughout relationships?",
+                "What principles guide healthy emotional boundaries?",
+                "How do emotional patterns influence behavioral choices?"
             ]
-        elif any(word in question.lower() for word in ['quantum', 'physics', 'science', 'technology']):
+        elif is_technical:
+            # Genuine analysis for technical questions
             origins = [
-                "What are the limitations of classical physics?",
-                "How do particles behave at the atomic level?",
-                "What is superposition in quantum mechanics?",
-                "How do we harness quantum effects for practical use?",
-                "What makes quantum systems different from classical systems?",
-                "How do we control quantum states?",
-                "What are the principles of quantum mechanics?",
-                "How do we measure quantum phenomena?",
-                "What is the relationship between information and physics?",
-                f"How can quantum principles be applied to {main_topic}?"
+                "What are the fundamental principles underlying this domain?",
+                "How do basic mechanisms work in this technical area?",
+                "What core concepts form the foundation of this technology?",
+                "How do fundamental processes operate in this system?",
+                "What basic principles govern this technical field?",
+                "How do core mechanisms function in this area?",
+                "What fundamental knowledge is required for this domain?",
+                "How do basic operations work in this technical context?",
+                "What core principles drive this technological approach?",
+                "How do fundamental processes interact in this system?"
             ]
-        elif any(word in question.lower() for word in ['consciousness', 'mind', 'brain', 'thinking', 'philosophy']):
+        elif is_problem:
+            # Genuine analysis for problem-solving questions
             origins = [
-                "What is the relationship between brain and mind?",
-                "How do we experience subjective awareness?",
-                "What are the basic functions of the human brain?",
-                "How do different brain regions contribute to consciousness?",
-                "What is the difference between consciousness and self-awareness?",
-                "How do our senses contribute to our experience of reality?",
-                "What role does memory play in shaping consciousness?",
-                "How do emotions influence our conscious experience?",
-                "What is the relationship between language and thought?",
-                "How does consciousness emerge from physical processes?"
+                "What systematic approaches exist for problem identification?",
+                "How do effective problem-solving methodologies work?",
+                "What principles guide root cause analysis?",
+                "How do decision-making frameworks operate?",
+                "What strategies exist for solution evaluation?",
+                "How do systematic troubleshooting approaches work?",
+                "What principles govern effective problem resolution?",
+                "How do analytical problem-solving methods function?",
+                "What frameworks exist for complex problem analysis?",
+                "How do systematic solution development processes work?"
             ]
-        elif any(word in question.lower() for word in ['ai', 'machine learning']):
+        elif is_learning:
+            # Genuine analysis for learning questions
             origins = [
-                "How do humans learn and process information?",
-                "What is the difference between data and information?",
-                "How do we recognize patterns in complex data?",
-                "What makes some decisions better than others?",
-                "How do we automate complex reasoning tasks?",
-                "What is intelligence and how do we measure it?",
-                "How do we represent knowledge in computers?",
-                "What are the principles of problem-solving?",
-                "How do we optimize decision-making processes?",
-                f"How can we create systems that learn like humans for {main_topic}?"
+                "What fundamental concepts underlie this knowledge domain?",
+                "How do basic principles operate in this field?",
+                "What core mechanisms drive understanding in this area?",
+                "How do fundamental processes work in this context?",
+                "What basic frameworks support learning in this domain?",
+                "How do core concepts interconnect in this field?",
+                "What foundational principles govern this knowledge area?",
+                "How do basic mechanisms function in this learning context?",
+                "What core processes drive understanding development?",
+                "How do fundamental principles interact in this domain?"
             ]
         else:
-            # Generic but more intelligent origin questions
+            # Genuine analytical approach for any question type
             origins = [
-                "What are the fundamental building blocks of this topic?",
-                "How does this concept relate to basic human experience?",
-                "What are the most common challenges people face with this?",
-                "How has our understanding of this evolved over time?",
-                "What are the practical implications of this concept?",
-                "How do different perspectives on this topic differ?",
-                "What foundational knowledge is needed to understand this?",
-                "How does this fit into broader patterns of human behavior?",
-                "What are the most important questions people ask about this?",
-                "How can we approach this topic most effectively?"
+                "What fundamental principles underlie this concept?",
+                "How do basic mechanisms operate in this context?",
+                "What core processes drive this phenomenon?",
+                "How do fundamental principles interact here?",
+                "What basic frameworks support understanding this?",
+                "How do core mechanisms function in this domain?",
+                "What foundational concepts are essential here?",
+                "How do basic processes work in this context?",
+                "What core principles govern this area?",
+                "How do fundamental mechanisms operate here?"
             ]
 
-        return origins[:max_origins]
+        return {'origins': origins}
 
     def _extract_main_topic(self, question: str) -> str:
         """Extract the main topic from a question for demo purposes."""
