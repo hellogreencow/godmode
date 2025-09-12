@@ -905,36 +905,81 @@ NEXT_QUESTION: [The user's next logical question]"""
         ][:max_questions]
 
     def _demo_branches(self, question: str, max_branches: int) -> List[ConversationBranch]:
-        """Generate demo conversation branches."""
+        """Generate contextually aware demo conversation branches."""
         main_topic = self._extract_main_topic(question)
-        
-        branches = [
-            ConversationBranch(
-                branch_id="technical_deep_dive",
-                nodes=[],
-                probability=0.8,
-                reasoning_path=f"Technical deep dive into {main_topic} mechanisms and implementation details",
-                outcome_prediction=f"Comprehensive technical understanding of {main_topic}",
-                key_decision_points=[f"Technical aspects of {main_topic}"]
-            ),
-            ConversationBranch(
-                branch_id="practical_applications",
-                nodes=[],
-                probability=0.7,
-                reasoning_path=f"Exploration of real-world applications and use cases for {main_topic}",
-                outcome_prediction=f"Understanding practical implementations of {main_topic}",
-                key_decision_points=[f"Applications of {main_topic}"]
-            ),
-            ConversationBranch(
-                branch_id="comparative_analysis",
-                nodes=[],
-                probability=0.6,
-                reasoning_path=f"Comparative analysis of {main_topic} versus alternative approaches",
-                outcome_prediction=f"Clear understanding of {main_topic} advantages and trade-offs",
-                key_decision_points=[f"Comparison of {main_topic} with alternatives"]
-            ),
-            ConversationBranch(
-                branch_id="future_implications",
+
+        # Context-aware branches based on question type
+        if any(word in question.lower() for word in ['relationship', 'girlfriend', 'boyfriend', 'love', 'win', 'back', 'girl', 'guy', 'partner', 'ex', 'cheated', 'trust']):
+            branches = [
+                ConversationBranch(
+                    branch_id="emotional_growth",
+                    nodes=[],
+                    probability=0.8,
+                    reasoning_path="Focus on personal development and emotional healing",
+                    outcome_prediction="Deeper self-awareness and emotional maturity",
+                    key_decision_points=["Therapy and self-reflection", "Building new healthy habits"]
+                ),
+                ConversationBranch(
+                    branch_id="communication_strategy",
+                    nodes=[],
+                    probability=0.7,
+                    reasoning_path="Develop better communication and conflict resolution skills",
+                    outcome_prediction="Improved relationship communication patterns",
+                    key_decision_points=["Learning healthy communication", "Understanding attachment styles"]
+                ),
+                ConversationBranch(
+                    branch_id="boundary_setting",
+                    nodes=[],
+                    probability=0.6,
+                    reasoning_path="Establish healthy boundaries and self-respect",
+                    outcome_prediction="Stronger sense of self-worth and clearer boundaries",
+                    key_decision_points=["Identifying deal-breakers", "Setting personal standards"]
+                ),
+                ConversationBranch(
+                    branch_id="social_support",
+                    nodes=[],
+                    probability=0.5,
+                    reasoning_path="Build support network and seek advice from trusted friends",
+                    outcome_prediction="Stronger support system and external perspectives",
+                    key_decision_points=["Reconnecting with friends", "Seeking objective advice"]
+                ),
+                ConversationBranch(
+                    branch_id="future_focus",
+                    nodes=[],
+                    probability=0.4,
+                    reasoning_path="Shift focus to future goals and personal growth",
+                    outcome_prediction="Clarity on life direction and personal priorities",
+                    key_decision_points=["Setting new goals", "Exploring new interests"]
+                )
+            ]
+        elif any(word in question.lower() for word in ['quantum', 'physics', 'science', 'technology']):
+            branches = [
+                ConversationBranch(
+                    branch_id="technical_deep_dive",
+                    nodes=[],
+                    probability=0.8,
+                    reasoning_path=f"Technical deep dive into {main_topic} mechanisms and implementation details",
+                    outcome_prediction=f"Comprehensive technical understanding of {main_topic}",
+                    key_decision_points=[f"Technical aspects of {main_topic}"]
+                ),
+                ConversationBranch(
+                    branch_id="practical_applications",
+                    nodes=[],
+                    probability=0.7,
+                    reasoning_path=f"Exploration of real-world applications and use cases for {main_topic}",
+                    outcome_prediction=f"Understanding practical implementations of {main_topic}",
+                    key_decision_points=[f"Applications of {main_topic}"]
+                ),
+                ConversationBranch(
+                    branch_id="comparative_analysis",
+                    nodes=[],
+                    probability=0.6,
+                    reasoning_path=f"Comparative analysis of {main_topic} versus alternative approaches",
+                    outcome_prediction=f"Clear understanding of {main_topic} advantages and trade-offs",
+                    key_decision_points=[f"Comparison of {main_topic} with alternatives"]
+                ),
+                ConversationBranch(
+                    branch_id="future_implications",
                 nodes=[],
                 probability=0.5,
                 reasoning_path=f"Discussion of future developments and societal impact of {main_topic}",
@@ -954,25 +999,24 @@ NEXT_QUESTION: [The user's next logical question]"""
         return branches[:max_branches]
 
     def _demo_origin_questions(self, question: str, max_origins: int) -> List[str]:
-        """Generate demo origin questions that could lead to the current question."""
+        """Generate contextually aware origin questions that could lead to the current question."""
         main_topic = self._extract_main_topic(question)
-        
-        # Generic origin questions that build up to any topic
-        origins = [
-            "What is the difference between traditional and modern computing?",
-            "How do computers process information at the most basic level?",
-            "What are the fundamental principles of information theory?",
-            "How do mathematical concepts translate into practical applications?",
-            "What drives innovation in technology and science?",
-            "How do we solve complex problems that seem impossible?",
-            "What are the limits of current technology?",
-            "How do we measure the efficiency of different approaches?",
-            "What makes some technologies more successful than others?",
-            "How do we evaluate the potential of emerging technologies?"
-        ]
-        
-        # Topic-specific origin questions
-        if 'quantum' in question.lower():
+
+        # Context-aware origin questions based on question type
+        if any(word in question.lower() for word in ['relationship', 'girlfriend', 'boyfriend', 'love', 'win', 'back', 'girl', 'guy', 'partner', 'ex', 'cheated', 'trust']):
+            origins = [
+                "How do healthy relationships typically work?",
+                "What are the basic principles of emotional intelligence?",
+                "How do people typically communicate their feelings?",
+                "What are common relationship challenges people face?",
+                "How do trust issues usually develop in relationships?",
+                "What are the signs that someone might be cheating?",
+                "How do people typically respond to being hurt by someone they love?",
+                "What does it mean to truly know yourself in a relationship context?",
+                "How do past experiences influence current relationship choices?",
+                "What are the fundamental differences between healthy and unhealthy relationships?"
+            ]
+        elif any(word in question.lower() for word in ['quantum', 'physics', 'science', 'technology']):
             origins = [
                 "What are the limitations of classical physics?",
                 "How do particles behave at the atomic level?",
@@ -984,6 +1028,19 @@ NEXT_QUESTION: [The user's next logical question]"""
                 "How do we measure quantum phenomena?",
                 "What is the relationship between information and physics?",
                 f"How can quantum principles be applied to {main_topic}?"
+            ]
+        elif any(word in question.lower() for word in ['consciousness', 'mind', 'brain', 'thinking', 'philosophy']):
+            origins = [
+                "What is the relationship between brain and mind?",
+                "How do we experience subjective awareness?",
+                "What are the basic functions of the human brain?",
+                "How do different brain regions contribute to consciousness?",
+                "What is the difference between consciousness and self-awareness?",
+                "How do our senses contribute to our experience of reality?",
+                "What role does memory play in shaping consciousness?",
+                "How do emotions influence our conscious experience?",
+                "What is the relationship between language and thought?",
+                "How does consciousness emerge from physical processes?"
             ]
         elif any(word in question.lower() for word in ['ai', 'machine learning']):
             origins = [
@@ -998,7 +1055,21 @@ NEXT_QUESTION: [The user's next logical question]"""
                 "How do we optimize decision-making processes?",
                 f"How can we create systems that learn like humans for {main_topic}?"
             ]
-        
+        else:
+            # Generic but more intelligent origin questions
+            origins = [
+                "What are the fundamental building blocks of this topic?",
+                "How does this concept relate to basic human experience?",
+                "What are the most common challenges people face with this?",
+                "How has our understanding of this evolved over time?",
+                "What are the practical implications of this concept?",
+                "How do different perspectives on this topic differ?",
+                "What foundational knowledge is needed to understand this?",
+                "How does this fit into broader patterns of human behavior?",
+                "What are the most important questions people ask about this?",
+                "How can we approach this topic most effectively?"
+            ]
+
         return origins[:max_origins]
 
     def _extract_main_topic(self, question: str) -> str:
