@@ -173,11 +173,14 @@ class GodModeWebApp:
             )
 
             try:
-                # Import conversation predictor
-                from godmode.core.conversation_predictor import conversation_predictor
+                # Import conversation predictor with proper error handling
+                from godmode.core.conversation_predictor import get_conversation_predictor
 
-                # Predict conversation
-                result = await conversation_predictor.predict_conversation(
+                # Get real AI conversation predictor
+                predictor = get_conversation_predictor()
+
+                # Predict conversation using REAL AI
+                result = await predictor.predict_conversation(
                     current_question=question,
                     conversation_context=context
                 )
