@@ -11,7 +11,8 @@ import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
-import httpx
+import requests
+import json
 from pydantic import BaseModel, Field
 
 from godmode.models.core import Problem, Solution
@@ -36,14 +37,14 @@ class OpenRouterConfig(BaseModel):
     """Configuration for OpenRouter integration."""
     api_key: str = Field(..., description="OpenRouter API key")
     base_url: str = Field("https://openrouter.ai/api/v1", description="OpenRouter API base URL")
-    default_model: str = Field("anthropic/claude-3.5-sonnet", description="Default model to use")
+    default_model: str = Field("nvidia/nemotron-nano-9b-v2:free", description="Default model to use")
     timeout: float = Field(30.0, description="Request timeout in seconds")
     max_retries: int = Field(3, description="Maximum number of retries")
 
 
 class OpenRouterIntegration:
     """Integration with OpenRouter API for accessing various LLMs."""
-    
+
     def __init__(self, config: Optional[OpenRouterConfig] = None):
         """Initialize OpenRouter integration."""
         if config is None:
@@ -55,22 +56,63 @@ class OpenRouterIntegration:
                     "or provide OpenRouterConfig with api_key."
                 )
             config = OpenRouterConfig(api_key=api_key)
-        
+
         self.config = config
-        self.client = httpx.AsyncClient(
-            base_url=config.base_url,
-            headers={
-                "Authorization": f"Bearer {config.api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/godmode-ai/godmode",
-                "X-Title": "GodMode Hierarchical Reasoning System"
-            },
-            timeout=config.timeout
-        )
-        
+
+        # Use requests session exactly as per OpenRouter quickstart
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Authorization": f"Bearer {config.api_key}",
+            "HTTP-Referer": "https://github.com/godmode-ai/godmode",
+            "X-Title": "GodMode Hierarchical Reasoning System",
+        })
+
         # Available models cache
         self._models_cache: Optional[List[ModelInfo]] = None
-        
+
+    def _call_openrouter_api(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Make OpenRouter API call using requests (exactly as per quickstart guide)."""
+        try:
+            # Use requests.post exactly as per OpenRouter quickstart
+            response = self.session.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                data=json.dumps(payload)  # Use data=json.dumps() as per quickstart
+            )
+
+            response.raise_for_status()
+            response_data = response.json()
+
+            if "choices" in response_data and response_data["choices"]:
+                return {
+                    "success": True,
+                    "content": response_data["choices"][0]["message"]["content"],
+                    "model": payload.get("model", self.config.default_model),
+                    "usage": response_data.get("usage", {}),
+                    "response_time": response.elapsed.total_seconds()
+                }
+            else:
+                logger.error(f"No choices in response: {response_data}")
+                return {
+                    "success": False,
+                    "error": f"No choices in response: {response_data}",
+                    "model": payload.get("model", self.config.default_model)
+                }
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"OpenRouter API request failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "model": payload.get("model", self.config.default_model)
+            }
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            return {
+                "success": False,
+                "error": f"JSON decode error: {e}",
+                "model": payload.get("model", self.config.default_model)
+            }
+
     async def get_available_models(self, refresh: bool = False) -> List[ModelInfo]:
         """Get list of available models from OpenRouter."""
         if self._models_cache is None or refresh:
@@ -100,7 +142,7 @@ class OpenRouterIntegration:
         
         return self._models_cache or []
     
-    async def generate_reasoning(
+    def generate_reasoning(
         self,
         problem: Problem,
         model_id: Optional[str] = None,
@@ -109,14 +151,14 @@ class OpenRouterIntegration:
         temperature: float = 0.7,
     ) -> Dict[str, Any]:
         """Generate reasoning for a problem using OpenRouter model."""
-        
+
         model_id = model_id or self.config.default_model
-        
+
         if system_prompt is None:
             system_prompt = self._create_reasoning_system_prompt()
-        
+
         user_prompt = self._create_problem_prompt(problem)
-        
+
         payload = {
             "model": model_id,
             "messages": [
@@ -127,49 +169,22 @@ class OpenRouterIntegration:
             "temperature": temperature,
             "stream": False
         }
-        
-        try:
-            response = await self.client.post("/chat/completions", json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            
-            if "choices" in result and result["choices"]:
-                content = result["choices"][0]["message"]["content"]
-                
-                return {
-                    "success": True,
-                    "content": content,
-                    "model": model_id,
-                    "usage": result.get("usage", {}),
-                    "response_time": response.elapsed.total_seconds()
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "No response content",
-                    "model": model_id
-                }
-                
-        except Exception as e:
-            logger.error(f"OpenRouter API error: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "model": model_id
-            }
+
+        # Use requests exactly as per OpenRouter quickstart guide
+        logger.info(f"Making OpenRouter API call for model: {model_id}")
+        return self._call_openrouter_api(payload)
     
-    async def solve_problem_with_model(
+    def solve_problem_with_model(
         self,
         problem: Problem,
         model_id: str,
         approach: str = "hierarchical"
     ) -> Solution:
         """Solve a problem using a specific OpenRouter model."""
-        
+
         system_prompt = self._create_advanced_reasoning_prompt(approach)
-        
-        result = await self.generate_reasoning(
+
+        result = self.generate_reasoning(
             problem=problem,
             model_id=model_id,
             system_prompt=system_prompt,
@@ -208,24 +223,9 @@ class OpenRouterIntegration:
             )
     
     def _create_reasoning_system_prompt(self) -> str:
-        """Create system prompt for reasoning tasks."""
-        return """You are an advanced AI reasoning system with hierarchical cognitive capabilities.
-
-Your task is to solve complex problems using structured, multi-level reasoning:
-
-1. METACOGNITIVE LEVEL: Analyze the problem structure, identify key components, and plan your approach
-2. EXECUTIVE LEVEL: Break down the problem into manageable subgoals and allocate cognitive resources
-3. OPERATIONAL LEVEL: Execute specific reasoning procedures and apply domain knowledge
-4. REACTIVE LEVEL: Generate immediate insights and pattern-based responses
-
-For each problem:
-- Provide clear, structured reasoning
-- Show your thinking process at each cognitive level
-- Give confidence estimates for your conclusions
-- Consider multiple perspectives and approaches
-- Identify potential limitations or uncertainties
-
-Format your response with clear sections for each reasoning level."""
+        """Create concise system prompt for reasoning tasks."""
+        return """You are an AI assistant. Solve problems using structured reasoning.
+Provide clear, logical solutions with confidence estimates."""
     
     def _create_problem_prompt(self, problem: Problem) -> str:
         """Create user prompt from problem."""

@@ -3,19 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>GodMode - Get to the bottom of it</title>
     <style>
         :root {
             --flowing-gradient: linear-gradient(45deg,
                 #1a1a2e 0%,
+                #1a1a2e 10%,
                 #16213e 25%,
                 #0f3460 50%,
                 #16213e 75%,
+                #1a1a2e 90%,
                 #1a1a2e 100%);
             --flowing-gradient-alt: linear-gradient(135deg,
                 #0f3460 0%,
-                #16213e 50%,
-                #1a1a2e 100%);
+                #16213e 25%,
+                #1a1a2e 50%,
+                #16213e 75%,
+                #0f3460 100%);
+            --noise-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
             --text-primary: #ffffff;
             --text-secondary: rgba(255, 255, 255, 0.8);
             --text-muted: rgba(255, 255, 255, 0.6);
@@ -35,19 +42,53 @@
         body {
             font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--flowing-gradient);
-            background-size: 400% 400%;
-            animation: gradientFlow 15s ease infinite;
+            background-size: 600% 600%;
+            animation: gradientFlow 20s ease infinite;
             color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
             line-height: 1.6;
+            position: relative;
         }
 
-        @keyframes gradientFlow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* Add subtle noise overlay to reduce banding */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: var(--noise-texture);
+            opacity: 0.02;
+            pointer-events: none;
+            z-index: -1;
         }
+
+        /* Enhanced gradient animation */
+        @keyframes gradientFlow {
+            0% {
+                background-position: 0% 50%;
+                filter: hue-rotate(0deg) saturate(1);
+            }
+            25% {
+                background-position: 100% 50%;
+                filter: hue-rotate(5deg) saturate(1.1);
+            }
+            50% {
+                background-position: 100% 100%;
+                filter: hue-rotate(10deg) saturate(1);
+            }
+            75% {
+                background-position: 0% 100%;
+                filter: hue-rotate(5deg) saturate(1.1);
+            }
+            100% {
+                background-position: 0% 50%;
+                filter: hue-rotate(0deg) saturate(1);
+            }
+        }
+
 
         .main-container {
             min-height: 100vh;
@@ -546,28 +587,45 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/${clientId}`;
 
+            console.log('🌐 Attempting to connect to:', wsUrl);
+            console.log('📍 Current page port:', window.location.port);
+            console.log('🔗 Current page URL:', window.location.href);
             websocket = new WebSocket(wsUrl);
 
             websocket.onopen = function(event) {
-                console.log('Connected to GodMode server');
+                console.log('✅ Connected to GodMode server');
                 updateReasoningIndicator('Connected', 'Ready to predict conversations', 1.0);
             };
 
             websocket.onclose = function(event) {
-                console.log('Disconnected from server');
-                updateReasoningIndicator('Disconnected', 'Connection lost - predictions limited', 0.0);
+                console.log('❌ Disconnected from server. Code:', event.code, 'Reason:', event.reason);
+                updateReasoningIndicator('Disconnected', `Connection lost (${event.code})`, 0.0);
                 setTimeout(connectWebSocket, 3000);
             };
 
             websocket.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('📨 Received message:', data);
+                    handleWebSocketMessage(data);
+                } catch (e) {
+                    console.error('❌ Failed to parse WebSocket message:', e, 'Raw data:', event.data);
+                }
             };
 
             websocket.onerror = function(error) {
-                console.error('WebSocket error:', error);
+                console.error('❌ WebSocket error:', error);
                 updateReasoningIndicator('Connection Error', 'Unable to connect to server', 0.0);
             };
+
+            // Add connection timeout
+            setTimeout(() => {
+                if (websocket.readyState === WebSocket.CONNECTING) {
+                    console.log('⚠️ WebSocket connection timeout - retrying...');
+                    websocket.close();
+                    setTimeout(connectWebSocket, 1000);
+                }
+            }, 5000);
         }
 
         function handleWebSocketMessage(data) {
@@ -603,21 +661,32 @@
 
         function sendMessage() {
             const message = messageInput.value.trim();
-            if (message && !isProcessing && websocket && websocket.readyState === WebSocket.OPEN) {
-                isProcessing = true;
-                sendButton.disabled = true;
-                sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            if (message && !isProcessing) {
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    isProcessing = true;
+                    sendButton.disabled = true;
+                    sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-                const payload = {
-                    type: 'predict',
-                    question: message,
-                    context: []
-                };
+                    const payload = {
+                        type: 'predict',
+                        question: message,
+                        context: []
+                    };
 
-                websocket.send(JSON.stringify(payload));
-                messageInput.value = '';
-            } else if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-                updateReasoningIndicator('Not Connected', 'Please refresh the page', 0.0);
+                    console.log('📤 Sending message:', payload);
+                    try {
+                        websocket.send(JSON.stringify(payload));
+                        messageInput.value = '';
+                    } catch (e) {
+                        console.error('❌ Failed to send WebSocket message:', e);
+                        updateReasoningIndicator('Send Error', 'Failed to send message', 0.0);
+                        hideLoading();
+                    }
+                } else {
+                    console.log('⚠️ WebSocket not connected. State:', websocket ? websocket.readyState : 'null');
+                    updateReasoningIndicator('Not Connected', 'Reconnecting...', 0.0);
+                    connectWebSocket();
+                }
             }
         }
 

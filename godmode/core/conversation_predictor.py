@@ -108,7 +108,7 @@ class ConversationPredictor:
             self.hrm = None
             logger.warning("⚠️ HRM not available - using standard reasoning")
 
-    async def predict_conversation(
+    def predict_conversation(
         self,
         current_question: str,
         conversation_context: Optional[List[Dict[str, Any]]] = None,
@@ -123,18 +123,18 @@ class ConversationPredictor:
         logger.info(f"🔮 REAL AI Prediction for: {current_question[:100]}...")
 
         # Step 1: AI-driven reasoning type analysis
-        reasoning_analysis = await self._analyze_reasoning_type(current_question)
-        
+        reasoning_analysis = self._analyze_reasoning_type(current_question)
+
         # Enhance with HRM if available
         if self.hrm:
             try:
-                hrm_analysis = await self._enhance_with_hrm(current_question, reasoning_analysis)
+                hrm_analysis = self._enhance_with_hrm(current_question, reasoning_analysis)
                 reasoning_analysis.update(hrm_analysis)
             except Exception as e:
                 logger.warning(f"HRM enhancement failed: {e}")
 
         # Step 2: AI-generated conversation simulation
-        simulated_conversation = await self._simulate_full_conversation(
+        simulated_conversation = self._simulate_full_conversation(
             current_question,
             conversation_context,
             max_future_questions,
@@ -142,14 +142,14 @@ class ConversationPredictor:
         )
 
         # Step 3: AI-generated alternative branches
-        alternative_branches = await self._explore_branches(
+        alternative_branches = self._explore_branches(
             current_question,
             conversation_context,
             max_branches
         )
 
         # Step 4: AI-generated origin questions
-        origin_questions = await self._reveal_origin_questions(
+        origin_questions = self._reveal_origin_questions(
             current_question,
             conversation_context,
             max_origin_questions
@@ -177,7 +177,7 @@ class ConversationPredictor:
 
         return result
 
-    async def _analyze_reasoning_type(self, question: str) -> Dict[str, str]:
+    def _analyze_reasoning_type(self, question: str) -> Dict[str, str]:
         """AI-driven reasoning type selection with explanation."""
 
         system_prompt = """You are an expert conversation analyst. Analyze the given question and determine the most appropriate reasoning type from: hierarchical, forward, backward, analogical, causal, temporal, abductive, creative.
@@ -191,7 +191,7 @@ Select the BEST reasoning type and explain your choice."""
         user_prompt = f"Analyze this question and select the optimal reasoning approach: {question}"
 
         try:
-            result = await self.openrouter.generate_reasoning(
+            result = self.openrouter.generate_reasoning(
                 problem=Problem(
                     title="Reasoning Type Analysis",
                     description=user_prompt,
@@ -203,9 +203,10 @@ Select the BEST reasoning type and explain your choice."""
                 temperature=0.3
             )
 
-            if hasattr(result, 'solution') and result.solution:
-                return self._parse_reasoning_analysis(result.solution.content)
+            if result["success"]:
+                return self._parse_reasoning_analysis(result["content"])
             else:
+                logger.error(f"AI analysis failed: {result.get('error', 'Unknown error')}")
                 return {'type': 'hierarchical', 'explanation': 'Default reasoning approach'}
 
         except Exception as e:
@@ -238,7 +239,7 @@ Select the BEST reasoning type and explain your choice."""
 
         return {'type': selected_type, 'explanation': explanation}
 
-    async def _enhance_with_hrm(self, question: str, reasoning_analysis: Dict[str, str]) -> Dict[str, Any]:
+    def _enhance_with_hrm(self, question: str, reasoning_analysis: Dict[str, str]) -> Dict[str, Any]:
         """Enhance reasoning analysis with Hierarchical Reasoning Model."""
         if not self.hrm:
             return {}
@@ -252,7 +253,7 @@ Select the BEST reasoning type and explain your choice."""
             }
 
             # Process through HRM layers
-            enhanced_analysis = await self.hrm.process_hierarchical_reasoning(hrm_input)
+            enhanced_analysis = self.hrm.process_hierarchical_reasoning(hrm_input)
 
             return {
                 'hrm_enhanced': True,
@@ -265,7 +266,7 @@ Select the BEST reasoning type and explain your choice."""
             logger.error(f"HRM enhancement failed: {e}")
             return {}
 
-    async def _simulate_full_conversation(
+    def _simulate_full_conversation(
         self,
         initial_question: str,
         context: Optional[List[Dict[str, Any]]],
@@ -297,7 +298,7 @@ AI: [intelligent response]
 Generate a {max_turns}-turn conversation simulation that demonstrates genuine intelligence and contextual understanding."""
 
         try:
-            result = await self.openrouter.generate_reasoning(
+            result = self.openrouter.generate_reasoning(
                 problem=Problem(
                     title="Conversation Simulation",
                     description=user_prompt,
@@ -309,10 +310,10 @@ Generate a {max_turns}-turn conversation simulation that demonstrates genuine in
                 temperature=0.7
             )
 
-            if hasattr(result, 'solution') and result.solution:
-                return self._parse_conversation_simulation(result.solution.content, reasoning_type)
+            if result["success"]:
+                return self._parse_conversation_simulation(result["content"], reasoning_type)
             else:
-                logger.error("No solution in AI response")
+                logger.error(f"AI conversation simulation failed: {result.get('error', 'Unknown error')}")
                 return []
 
         except Exception as e:
@@ -353,7 +354,7 @@ Generate a {max_turns}-turn conversation simulation that demonstrates genuine in
 
         return conversation_turns
 
-    async def _explore_branches(
+    def _explore_branches(
         self,
         current_question: str,
         context: Optional[List[Dict[str, Any]]],
@@ -387,7 +388,7 @@ Context: {context_str}
 Explore {max_branches} alternative conversation branches."""
 
         try:
-            result = await self.openrouter.generate_reasoning(
+            result = self.openrouter.generate_reasoning(
                 problem=Problem(
                     title="Branch Exploration",
                     description=user_prompt,
@@ -399,9 +400,10 @@ Explore {max_branches} alternative conversation branches."""
                 temperature=0.8
             )
 
-            if hasattr(result, 'solution') and result.solution:
-                return self._parse_branches(result.solution.content, max_branches)
+            if result["success"]:
+                return self._parse_branches(result["content"], max_branches)
             else:
+                logger.error(f"AI branch exploration failed: {result.get('error', 'Unknown error')}")
                 return []
 
         except Exception as e:
@@ -449,7 +451,7 @@ Explore {max_branches} alternative conversation branches."""
 
         return branches
 
-    async def _reveal_origin_questions(
+    def _reveal_origin_questions(
         self,
         current_question: str,
         context: Optional[List[Dict[str, Any]]],
@@ -475,7 +477,7 @@ Context: {context if context else 'None'}
 Generate {max_origins} origin questions that could have led to this question."""
 
         try:
-            result = await self.openrouter.generate_reasoning(
+            result = self.openrouter.generate_reasoning(
                 problem=Problem(
                     title="Origin Question Analysis",
                     description=user_prompt,
@@ -487,9 +489,10 @@ Generate {max_origins} origin questions that could have led to this question."""
                 temperature=0.6
             )
 
-            if hasattr(result, 'solution') and result.solution:
-                return self._parse_numbered_list(result.solution.content, max_origins)
+            if result["success"]:
+                return self._parse_numbered_list(result["content"], max_origins)
             else:
+                logger.error(f"AI origin analysis failed: {result.get('error', 'Unknown error')}")
                 return []
 
         except Exception as e:

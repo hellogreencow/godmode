@@ -179,13 +179,21 @@ class GodModeWebApp:
                 # Get real AI conversation predictor
                 predictor = get_conversation_predictor()
 
+                # Send prediction start message
+                logger.info(f"Sending prediction_start for question: {question}")
+                await self.websocket_manager.send_personal_message(
+                    {"type": "prediction_start", "question": question},
+                    client_id
+                )
+
                 # Predict conversation using REAL AI
-                result = await predictor.predict_conversation(
+                result = predictor.predict_conversation(
                     current_question=question,
                     conversation_context=context
                 )
 
                 # Send reasoning type selection
+                logger.info(f"Sending reasoning_selected: {result.selected_reasoning_type}")
                 await self.websocket_manager.send_personal_message(
                     {
                         "type": "reasoning_selected",
@@ -232,6 +240,7 @@ class GodModeWebApp:
                 )
 
                 # Send completion
+                logger.info(f"Sending prediction_complete with {len(result.simulated_conversation)} turns")
                 await self.websocket_manager.send_personal_message(
                     {"type": "prediction_complete", "confidence": result.confidence_score},
                     client_id

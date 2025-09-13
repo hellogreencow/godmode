@@ -40,29 +40,107 @@ engine: Optional[GodModeEngine] = None
 hierarchical_model: Optional[HierarchicalReasoningModel] = None
 
 
-def find_available_port(start_port: int = 10000, max_attempts: int = 100) -> int:
-    """Find an available port by trying random high ports."""
+def find_available_port(avoid_ranges: List[tuple] = None, preferred_ranges: List[tuple] = None) -> int:
+    """Find an available port with intelligent allocation."""
     import random
 
-    # Create a list of ports to try (random order to reduce conflicts)
-    ports_to_try = list(range(start_port, start_port + max_attempts))
-    random.shuffle(ports_to_try)
+    # Default ranges to avoid (8000-8999, 3000-3999 for common dev servers)
+    if avoid_ranges is None:
+        avoid_ranges = [(8000, 8999), (3000, 3999)]
 
-    for port in ports_to_try:
-        try:
-            # Try to bind to the port
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                s.bind(('', port))
-                s.listen(1)
-                s.close()  # Close immediately after binding
+    # Preferred ranges (high ports, avoiding common conflicts)
+    if preferred_ranges is None:
+        preferred_ranges = [(10000, 19999), (20000, 29999), (40000, 49999)]
+
+    # Flatten avoid ranges into a set for quick lookup
+    avoid_ports = set()
+    for start, end in avoid_ranges:
+        avoid_ports.update(range(start, end + 1))
+
+    # Try preferred ranges first
+    for start, end in preferred_ranges:
+        ports_to_try = list(range(start, end + 1))
+        random.shuffle(ports_to_try)
+
+        for port in ports_to_try:
+            if port in avoid_ports:
+                continue
+
+            if is_port_available(port):
                 return port
-        except OSError:
-            # Port is in use, try next one
-            continue
 
-    # If we can't find an available port, use a very high random port
-    return random.randint(20000, 30000)
+    # Fallback: try random high ports
+    for _ in range(100):
+        port = random.randint(10000, 65535)
+        if port not in avoid_ports and is_port_available(port):
+            return port
+
+    raise RuntimeError("Could not find an available port after 100 attempts")
+
+
+def is_port_available(port: int) -> bool:
+    """Check if a port is available."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(1)
+            result = sock.connect_ex(('127.0.0.1', port))
+            return result != 0  # 0 means connection successful (port in use)
+    except:
+        return False
+
+
+class PortManager:
+    """Manages port allocation for GodMode services."""
+
+    def __init__(self, config_file: Optional[Path] = None):
+        self.config_file = config_file or Path.home() / ".godmode_ports.json"
+        self.ports = self._load_ports()
+
+    def _load_ports(self) -> Dict[str, int]:
+        """Load current port assignments."""
+        if self.config_file.exists():
+            try:
+                with open(self.config_file, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {}
+
+    def _save_ports(self):
+        """Save current port assignments."""
+        try:
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.config_file, 'w') as f:
+                json.dump(self.ports, f, indent=2)
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Warning: Could not save port configuration: {e}[/yellow]")
+
+    def get_port(self, service_name: str, force_new: bool = False) -> int:
+        """Get a port for a service, allocating a new one if needed."""
+        if not force_new and service_name in self.ports:
+            port = self.ports[service_name]
+            if is_port_available(port):
+                return port
+
+        # Find a new port
+        port = find_available_port()
+        self.ports[service_name] = port
+        self._save_ports()
+        return port
+
+    def release_port(self, service_name: str):
+        """Release a port assignment."""
+        if service_name in self.ports:
+            del self.ports[service_name]
+            self._save_ports()
+
+    def list_ports(self) -> Dict[str, int]:
+        """List all current port assignments."""
+        return self.ports.copy()
+
+
+# Global port manager
+port_manager = PortManager()
 
 
 def init_engine(
@@ -287,8 +365,8 @@ def web(
     # Auto-assign port if not specified
     if port is None:
         try:
-            port = find_available_port()
-            console.print(f"[green]🔀 Auto-assigned port: {port}[/green]")
+            port = port_manager.get_port("web_server")
+            console.print(f"[green]🔀 Auto-assigned port: {port} (managed by PortManager)[/green]")
         except RuntimeError as e:
             console.print(f"[red]❌ {e}[/red]")
             return
@@ -317,6 +395,119 @@ def web(
         web_app.run(host=host, port=port, reload=reload)
     except KeyboardInterrupt:
         console.print("\n👋 Shutting down web server...")
+
+
+@app.command()
+def ports(
+    action: str = typer.Argument(..., help="Action: list, release, reset"),
+    service: Optional[str] = typer.Option(None, help="Service name for release action"),
+):
+    """Manage port assignments for GodMode services."""
+    if action == "list":
+        current_ports = port_manager.list_ports()
+        if current_ports:
+            table = Table(title="GodMode Port Assignments")
+            table.add_column("Service", style="cyan")
+            table.add_column("Port", style="green")
+            table.add_column("Status", style="yellow")
+
+            for service_name, port in current_ports.items():
+                status = "✅ Available" if is_port_available(port) else "❌ In use"
+                table.add_row(service_name, str(port), status)
+
+            console.print(table)
+        else:
+            console.print("[dim]No port assignments found.[/dim]")
+
+    elif action == "release":
+        if not service:
+            console.print("[red]❌ Service name required for release action[/red]")
+            return
+
+        port_manager.release_port(service)
+        console.print(f"[green]✅ Released port for service: {service}[/green]")
+
+    elif action == "reset":
+        # Reset all port assignments
+        import os
+        config_file = Path.home() / ".godmode_ports.json"
+        if config_file.exists():
+            try:
+                os.remove(config_file)
+                console.print("[green]✅ Reset all port assignments[/green]")
+            except Exception as e:
+                console.print(f"[red]❌ Failed to reset ports: {e}[/red]")
+        else:
+            console.print("[dim]No port configuration file found.[/dim]")
+
+    else:
+        console.print("[red]❌ Invalid action. Use: list, release, reset[/red]")
+
+
+@app.command()
+def port_test():
+    """Test the intelligent port allocation system."""
+    console.print("[bold green]🧪 GODMODE INTELLIGENT PORT ALLOCATION TEST[/bold green]")
+    console.print("=" * 60)
+
+    # Test port allocation
+    console.print("\n[cyan]1. Testing port allocation...[/cyan]")
+    test_ports = {}
+
+    services = ["web_main", "api_gateway", "websocket_hub", "cache_server", "metrics_collector"]
+    for service in services:
+        port = port_manager.get_port(service)
+        test_ports[service] = port
+        console.print(f"   ✅ {service}: {port}")
+
+    # Show current assignments
+    console.print("\n[cyan]2. Current port assignments:[/cyan]")
+    current_ports = port_manager.list_ports()
+    for service, port in current_ports.items():
+        status = "✅ Available" if is_port_available(port) else "❌ In use"
+        console.print(f"   {service}: {port} ({status})")
+
+    # Test port conflicts
+    console.print("\n[cyan]3. Testing conflict avoidance:[/cyan]")
+    avoid_ranges = [(8000, 8999), (3000, 3999)]
+    avoid_ports = set()
+    for start, end in avoid_ranges:
+        avoid_ports.update(range(start, end + 1))
+
+    all_good = True
+    for service, port in test_ports.items():
+        if port in avoid_ports:
+            console.print(f"   ❌ {service} got forbidden port: {port}")
+            all_good = False
+        else:
+            console.print(f"   ✅ {service} avoided forbidden ranges: {port}")
+
+    # Test persistence
+    console.print("\n[cyan]4. Testing persistence:[/cyan]")
+    console.print("   Creating new PortManager instance...")
+    new_manager = PortManager()
+    persisted_ports = new_manager.list_ports()
+
+    if persisted_ports == current_ports:
+        console.print("   ✅ Port assignments persisted correctly")
+    else:
+        console.print("   ❌ Port assignments not persisted")
+        all_good = False
+
+    # Summary
+    console.print("\n" + "=" * 60)
+    if all_good:
+        console.print("[bold green]🎉 ALL TESTS PASSED![/bold green]")
+        console.print("[green]✅ Intelligent port allocation working perfectly")
+        console.print("[green]✅ Conflict avoidance functioning")
+        console.print("[green]✅ Persistence working")
+        console.print("[green]✅ No ports in forbidden ranges (8000-8999, 3000-3999)[/green]")
+    else:
+        console.print("[bold red]❌ SOME TESTS FAILED[/bold red]")
+
+    console.print("\n[dim]💡 Port configuration saved to: ~/.godmode_ports.json[/dim]")
+    console.print("[dim]💡 Use 'godmode ports list' to view current assignments[/dim]")
+    console.print("[dim]💡 Use 'godmode ports release <service>' to free ports[/dim]")
 
 
 @app.command()
